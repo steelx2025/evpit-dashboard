@@ -185,6 +185,16 @@ tr:hover td{background:#fafafa}
 .bar-out{flex:1;height:22px;background:#f5f5f5;border-radius:4px;overflow:hidden}
 .bar-in{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600}
 .note-in{width:100%;font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#1a1a1a;margin-top:6px}
+/* 비고 인라인 편집 */
+.note-cell{display:inline-flex;align-items:flex-start;gap:5px;cursor:pointer;border-radius:6px;padding:3px 6px;transition:background .12s;min-width:100px;max-width:160px;width:100%}
+.note-cell:hover{background:#f5f5f5}
+.note-text{font-size:11px;color:#999;white-space:normal;word-break:keep-all;line-height:1.5;flex:1}
+.note-text.has-value{color:#555}
+.note-edit-icon{font-size:10px;color:#ccc;flex-shrink:0;margin-top:1px}
+.note-input-wrap{display:none;flex-direction:column;gap:4px;min-width:160px}
+.note-input-wrap.open{display:flex}
+.note-textarea{font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid #378ADD;background:#fff;color:#1a1a1a;resize:none;width:160px;line-height:1.5;font-family:inherit;outline:none}
+.note-save-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:none;background:#1a1a1a;color:#fff;cursor:pointer;align-self:flex-end}
 
 /* 현장별 */
 .site-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -663,7 +673,7 @@ function renderTable() {
       <td style="color:#999">${fmtDate(d.sd)}</td>
       <td style="color:#999">${fmtDate(d.ad)}</td>
       <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
-      <td class="left" style="color:#999;font-size:11px;white-space:normal;max-width:130px;word-break:keep-all;line-height:1.5">${d.note||'—'}</td>
+      <td class="left" style="padding:6px 10px">${noteCellHtml(d.no, d.note)}</td>
     </tr>`;
   }).join('');
 }
@@ -825,8 +835,79 @@ function goKpi(name) {
   if(name==='mfg')renderMfgCards();
 }
 
+// ── 비고 인라인 편집 ───────────────────────────────────────
+function noteCellHtml(no, note) {
+  const txt = note || '—';
+  const cls = note ? 'has-value' : '';
+  return `<div class="note-cell" onclick="openNoteEdit(${no}, event)">
+    <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
+    <span class="note-edit-icon">✎</span>
+  </div>
+  <div class="note-input-wrap" id="note-wrap-${no}">
+    <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
+    <button class="note-save-btn" onclick="saveNoteInline(${no})">저장</button>
+  </div>`;
+}
+
+function openNoteEdit(no, event) {
+  event.stopPropagation();
+  // 다른 열린 편집창 닫기
+  document.querySelectorAll('.note-input-wrap.open').forEach(el => {
+    const n = el.id.replace('note-wrap-','');
+    closeNoteEdit(n, false);
+  });
+  document.getElementById('note-wrap-'+no).classList.add('open');
+  document.getElementById('note-cell-'+no) && document.getElementById('note-cell-'+no).style.setProperty('display','none');
+  // textarea에 포커스
+  setTimeout(() => {
+    const ta = document.getElementById('note-ta-'+no);
+    if (ta) { ta.focus(); ta.select(); }
+  }, 50);
+}
+
+function closeNoteEdit(no, save) {
+  document.getElementById('note-wrap-'+no).classList.remove('open');
+}
+
+function noteKeyDown(event, no) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    saveNoteInline(no);
+  }
+  if (event.key === 'Escape') {
+    closeNoteEdit(no, false);
+  }
+}
+
+async function saveNoteInline(no) {
+  const ta = document.getElementById('note-ta-'+no);
+  const val = ta.value.trim();
+  // 로컬 업데이트
+  const d = D.find(x => x.no === no);
+  if (d) d.note = val;
+  // UI 즉시 반영
+  const txtEl = document.getElementById('note-txt-'+no);
+  if (txtEl) {
+    txtEl.textContent = val || '—';
+    txtEl.className = 'note-text' + (val ? ' has-value' : '');
+  }
+  closeNoteEdit(no, true);
+  // DB 저장
+  await sb.from('pit_items').update({ note: val }).eq('no', no);
+  showToast('비고 저장됐어요 ✓');
+}
+
+// 테이블 외부 클릭 시 편집창 닫기
+document.addEventListener('click', () => {
+  document.querySelectorAll('.note-input-wrap.open').forEach(el => {
+    el.classList.remove('open');
+  });
+});
+
 // ── 시작 ──────────────────────────────────────────────────
 loadAll();
+
+
 document.getElementById('kpi-0').classList.add('active');
 </script>
 </body>
