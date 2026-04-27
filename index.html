@@ -776,19 +776,9 @@ tr:hover td{background:#fafafa}
         <input class="sp-input" id="sp-ad" type="date">
       </div>
     </div>
-    <div class="sp-row">
-      <div class="sp-field">
-        <label class="sp-label">단가 (원)</label>
-        <input class="sp-input" id="sp-price" type="number" placeholder="예) 1000000">
-      </div>
-      <div class="sp-field">
-        <label class="sp-label">출하 상태</label>
-        <select class="sp-select" id="sp-ship">
-          <option value="">대기</option>
-          <option value="출하대기">출하대기</option>
-          <option value="완료">출하완료</option>
-        </select>
-      </div>
+    <div class="sp-field">
+      <label class="sp-label">단가 (원)</label>
+      <input class="sp-input" id="sp-price" type="number" placeholder="예) 1000000">
     </div>
     <div class="sp-field">
       <label class="sp-label">비고</label>
@@ -1608,7 +1598,6 @@ function openPanel() {
     document.getElementById(id).value = '';
   });
   document.getElementById('sp-dl').value = '';
-  document.getElementById('sp-ship').value = '';
   document.getElementById('sp-price').value = '';
   document.getElementById('sp-sd').value = '';
   document.getElementById('sp-ad').value = '';
@@ -1645,7 +1634,7 @@ async function saveNewItem() {
     spec:    document.getElementById('sp-spec').value.trim() || '',
     mat_b:   '',
     mat_s:   '',
-    p_ship:  document.getElementById('sp-ship').value || '',
+    p_ship:  '',
     note:    document.getElementById('sp-note').value.trim() || '',
     dl:      dl,
     price:   parseInt(document.getElementById('sp-price').value) || 0,
