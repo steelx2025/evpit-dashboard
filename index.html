@@ -8,10 +8,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;background:#f5f5f7;min-height:100vh}
-.app{max-width:1400px;margin:0 auto;padding:0 0 40px}
+.app{max-width:100%;margin:0;padding:0 0 40px}
 
 /* 헤더 */
-.header{background:#fff;border-bottom:1px solid #e5e5e5;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.header{background:#fff;border-bottom:1px solid #e5e5e5;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .header-left{display:flex;align-items:center;gap:12px}
 .logo{font-size:15px;font-weight:600;color:#1a1a1a}
 .live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;animation:pulse 2s infinite}
@@ -21,7 +21,7 @@ body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;
 .sync-time{font-size:11px;color:#999}
 
 /* KPI */
-.kpi-section{padding:1.25rem 1.5rem 0}
+.kpi-section{padding:1.25rem 2rem 0}
 .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .kpi-card{background:#fff;border-radius:12px;padding:1rem 1.125rem;cursor:pointer;border:1.5px solid transparent;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .kpi-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
@@ -31,7 +31,7 @@ body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;
 .kpi-sub{font-size:11px;color:#999;margin-top:3px}
 
 /* 탭 */
-.tab-section{padding:1rem 1.5rem 0}
+.tab-section{padding:1rem 2rem 0}
 .tab-bar{display:flex;border-bottom:1px solid #e5e5e5;gap:0;background:#fff;border-radius:12px 12px 0 0;padding:0 1rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .tab{font-size:13px;padding:.75rem 1rem;cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;color:#999;white-space:nowrap;transition:all .15s}
 .tab.on{border-bottom-color:#1a1a1a;color:#1a1a1a;font-weight:600}
@@ -514,8 +514,10 @@ async function toggleStep(no, key) {
 // ── 자재 팝업 ──────────────────────────────────────────────
 function openMatPopup(no, field, event) {
   event.stopPropagation();
+  event.preventDefault();
   popupTarget = { no, field };
   const d = D.find(x => x.no === no);
+  if (!d) return;
   const cur = field === 'b' ? d.mat_b : d.mat_s;
   document.getElementById('mat-popup-title').textContent = `No.${no} ${d.pit} — ${field==='b'?'바닥판':'옆판'}`;
   document.getElementById('opt-done').className    = 'mat-opt' + (cur==='완료'?' selected':'');
@@ -523,14 +525,42 @@ function openMatPopup(no, field, event) {
   const isDate = cur && cur !== '완료' && cur !== '미정';
   document.getElementById('opt-date').className = 'mat-opt' + (isDate ? ' selected' : '');
   document.getElementById('mat-date-section').style.display = isDate ? 'block' : 'none';
+
   const popup = document.getElementById('mat-popup');
+  // 먼저 보이게 해서 실제 높이 측정
+  popup.style.visibility = 'hidden';
   popup.style.display = 'block';
+  const popupH = popup.offsetHeight;
+  const popupW = popup.offsetWidth || 220;
+  popup.style.visibility = 'visible';
+
   document.getElementById('mat-overlay').style.display = 'block';
   document.getElementById('mat-overlay').classList.add('active');
+
+  // 클릭한 셀의 viewport 기준 위치
   const rect = event.currentTarget.getBoundingClientRect();
-  let left = rect.left + window.scrollX;
-  let top  = rect.bottom + window.scrollY + 4;
-  if (left + 230 > window.innerWidth) left = window.innerWidth - 234;
+
+  // 가로: 오른쪽 넘치면 왼쪽으로
+  let left = rect.left;
+  if (left + popupW + 8 > window.innerWidth) {
+    left = rect.right - popupW;
+  }
+  if (left < 8) left = 8;
+
+  // 세로: 아래 공간 부족하면 위로 표시
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const spaceAbove = rect.top - 8;
+  let top;
+  if (spaceBelow >= popupH || spaceBelow >= spaceAbove) {
+    // 아래에 공간 있거나 아래가 더 넓으면 아래
+    top = rect.bottom + 4;
+  } else {
+    // 위로 표시
+    top = rect.top - popupH - 4;
+  }
+  if (top < 8) top = 8;
+
+  // fixed 기준으로 설정 (scrollY 더하지 않음)
   popup.style.left = left + 'px';
   popup.style.top  = top  + 'px';
 }
