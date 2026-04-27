@@ -89,7 +89,8 @@ tr:hover td{background:#fafafa}
 .mat-edit-icon{font-size:10px;color:#ccc}
 
 /* 자재 팝업 */
-.mat-overlay{position:fixed;inset:0;z-index:1000}
+.mat-overlay{position:fixed;inset:0;z-index:1000;pointer-events:none}
+.mat-overlay.active{pointer-events:auto}
 .mat-popup{position:fixed;z-index:1001;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:16px 14px 14px;width:220px}
 .mat-popup-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .mat-popup-title{font-size:12px;font-weight:600;flex:1;padding-right:8px;line-height:1.4}
@@ -525,6 +526,7 @@ function openMatPopup(no, field, event) {
   const popup = document.getElementById('mat-popup');
   popup.style.display = 'block';
   document.getElementById('mat-overlay').style.display = 'block';
+  document.getElementById('mat-overlay').classList.add('active');
   const rect = event.currentTarget.getBoundingClientRect();
   let left = rect.left + window.scrollX;
   let top  = rect.bottom + window.scrollY + 4;
@@ -535,6 +537,7 @@ function openMatPopup(no, field, event) {
 function closeMatPopup() {
   document.getElementById('mat-popup').style.display = 'none';
   document.getElementById('mat-overlay').style.display = 'none';
+  document.getElementById('mat-overlay').classList.remove('active');
   popupTarget = null;
 }
 async function setMat(val) {
