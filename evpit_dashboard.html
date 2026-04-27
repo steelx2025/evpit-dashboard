@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV PIT 출하 관리 시스템</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;background:#f5f5f7;min-height:100vh}
+.app{max-width:1400px;margin:0 auto;padding:0 0 40px}
+
+/* 헤더 */
+.header{background:#fff;border-bottom:1px solid #e5e5e5;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:15px;font-weight:600;color:#1a1a1a}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-label{font-size:11px;color:#1D9E75;font-weight:500}
+.header-right{font-size:11px;color:#999}
+.sync-time{font-size:11px;color:#999}
+
+/* KPI */
+.kpi-section{padding:1.25rem 1.5rem 0}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kpi-card{background:#fff;border-radius:12px;padding:1rem 1.125rem;cursor:pointer;border:1.5px solid transparent;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.kpi-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.kpi-card.active{border-color:#1a1a1a}
+.kpi-label{font-size:11px;color:#999;margin-bottom:6px}
+.kpi-value{font-size:22px;font-weight:600}
+.kpi-sub{font-size:11px;color:#999;margin-top:3px}
+
+/* 탭 */
+.tab-section{padding:1rem 1.5rem 0}
+.tab-bar{display:flex;border-bottom:1px solid #e5e5e5;gap:0;background:#fff;border-radius:12px 12px 0 0;padding:0 1rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.tab{font-size:13px;padding:.75rem 1rem;cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;color:#999;white-space:nowrap;transition:all .15s}
+.tab.on{border-bottom-color:#1a1a1a;color:#1a1a1a;font-weight:600}
+.tab:hover:not(.on){color:#555}
+
+/* 패널 */
+.pane{display:none;background:#fff;border-radius:0 0 12px 12px;padding:1.25rem 1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.pane.on{display:block}
+
+/* 필터 */
+.filt-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.fb{font-size:12px;padding:5px 13px;border-radius:20px;border:1px solid #e0e0e0;background:#fff;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap}
+.fb:hover{border-color:#999;color:#333}
+.fb.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.dl-wrap{position:relative;display:inline-flex;align-items:center}
+.dl-select{font-size:12px;padding:5px 30px 5px 13px;border-radius:20px;border:1px solid #e0e0e0;background:#fff;color:#666;cursor:pointer;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:none;min-width:112px;line-height:1.4}
+.dl-select:focus{outline:none}
+.dl-select.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.dl-arrow{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:9px;color:#999;line-height:1}
+.dl-select.on~.dl-arrow{color:#fff}
+
+/* 테이블 */
+.tscroll{overflow-x:auto;border:1px solid #e5e5e5;border-radius:10px}
+table{border-collapse:collapse;white-space:nowrap;font-size:12.5px;width:100%}
+th{padding:9px 14px;text-align:center;font-size:11px;font-weight:600;color:#999;border-bottom:1px solid #e5e5e5;background:#fafafa}
+th.left{text-align:left}
+td{padding:9px 14px;border-bottom:1px solid #f0f0f0;color:#1a1a1a;vertical-align:middle;white-space:nowrap;text-align:center}
+td.left{text-align:left}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.sep{border-left:1px solid #f0f0f0}
+
+/* 체크 버튼 */
+.ck{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;cursor:pointer;border:none;transition:all .15s;user-select:none;font-size:12px}
+.ck:active{transform:scale(.88)}
+.ck-done{background:#EAF3DE;color:#27500A}
+.ck-done:hover{background:#C0DD97}
+.ck-wait{background:#f5f5f5;border:1px solid #e0e0e0;color:#ccc}
+.ck-wait:hover{background:#EAF3DE;border-color:#97C459;color:#27500A}
+
+/* pill */
+.pill{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:500;display:inline-block;white-space:nowrap}
+.p-done{background:#EAF3DE;color:#27500A}
+.p-wait{background:#FAEEDA;color:#633806}
+.p-mfg{background:#EEEDFE;color:#3C3489}
+.p-plan{background:#f5f5f5;color:#666}
+
+/* 자재 셀 */
+.mat-cell{display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:4px 8px;transition:background .12s;min-width:72px;justify-content:space-between}
+.mat-cell:hover{background:#f5f5f5}
+.mat-val{font-size:12px}
+.mat-done{color:#27500A;font-weight:500}
+.mat-date{color:#185FA5;font-weight:500}
+.mat-none{color:#ccc}
+.mat-edit-icon{font-size:10px;color:#ccc}
+
+/* 자재 팝업 */
+.mat-overlay{position:fixed;inset:0;z-index:1000}
+.mat-popup{position:fixed;z-index:1001;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:16px 14px 14px;width:220px}
+.mat-popup-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mat-popup-title{font-size:12px;font-weight:600;flex:1;padding-right:8px;line-height:1.4}
+.mat-popup-close{width:22px;height:22px;background:#f5f5f5;border:none;border-radius:50%;cursor:pointer;font-size:12px;color:#666;display:flex;align-items:center;justify-content:center}
+.mat-popup-opts{display:flex;flex-direction:column;gap:6px}
+.mat-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;border:1px solid #e5e5e5;background:#fff;color:#1a1a1a;width:100%;text-align:left;transition:all .12s}
+.mat-opt:hover{background:#f5f5f5}
+.mat-opt.selected{background:#EAF3DE;border-color:#97C459;color:#27500A;font-weight:500}
+.mat-opt-icon{font-size:14px;width:18px;text-align:center}
+.mat-date-section{border-top:1px solid #f0f0f0;padding-top:10px;margin-top:8px}
+.mat-date-label{font-size:11px;color:#999;margin-bottom:6px}
+.mat-date-input{width:100%;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;color:#1a1a1a}
+.mat-date-confirm{margin-top:8px;width:100%;padding:7px;font-size:12px;font-weight:600;border-radius:8px;border:none;background:#1a1a1a;color:#fff;cursor:pointer}
+
+/* 카드 뷰 */
+.status-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.status-title{font-size:16px;font-weight:600}
+.status-count{font-size:12px;color:#999}
+.status-tags{display:flex;gap:6px;flex-wrap:wrap}
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.item-card{background:#fafafa;border:1px solid #e5e5e5;border-radius:12px;padding:1rem 1.125rem;display:flex;flex-direction:column;transition:all .15s}
+.item-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.card-pit{font-size:20px;font-weight:700}
+.card-gu{font-size:11px;color:#999;margin-top:1px}
+.card-site{font-size:12px;color:#666;margin-bottom:6px}
+.card-spec{font-size:11px;color:#999;background:#fff;border:1px solid #e5e5e5;border-radius:4px;padding:3px 7px;display:inline-block;margin-bottom:10px}
+.card-divider{height:1px;background:#e5e5e5;margin:8px 0}
+.card-meta{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:6px}
+.card-note{font-size:11px;color:#888;margin-top:6px;line-height:1.5;border-left:2px solid #e0e0e0;padding-left:7px}
+.step-row{display:flex;align-items:center;margin-top:8px}
+.step-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.step-item:not(:last-child)::after{content:'';position:absolute;right:-50%;top:10px;width:100%;height:1px;background:#e5e5e5;z-index:0}
+.step-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;z-index:1;position:relative}
+.sd-done{background:#EAF3DE;color:#27500A}
+.sd-wait{background:#f5f5f5;border:1px solid #e0e0e0;color:#ccc}
+.step-label{font-size:9px;color:#999;text-align:center}
+.step-label.done{color:#27500A;font-weight:600}
+
+/* 캘린더 */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.cal-nav{display:flex;align-items:center;gap:12px}
+.cal-nav button{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:13px;color:#1a1a1a}
+.cal-nav button:hover{background:#f5f5f5}
+.cal-title{font-size:16px;font-weight:600}
+.cal-leg{display:flex;gap:12px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:4px;font-size:11px;color:#999}
+.ldot{width:9px;height:9px;border-radius:2px}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cdow{text-align:center;font-size:11px;font-weight:600;color:#999;padding:6px 0}
+.cdow.sun{color:#E24B4A}
+.cday{min-height:76px;border:1px solid #f0f0f0;border-radius:8px;padding:6px;background:#fff;cursor:pointer;transition:all .12s}
+.cday:hover{border-color:#ccc}
+.cday.other{background:#fafafa;opacity:.4;cursor:default}
+.cday.today{border:2px solid #378ADD}
+.cday.today .dnum{color:#185FA5}
+.dnum{font-size:11px;font-weight:600;color:#999;margin-bottom:3px}
+.dnum.sun{color:#E24B4A}
+.cev{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
+.ce-ship{background:#E6F1FB;color:#0C447C}
+.ce-arr{background:#EAF3DE;color:#27500A}
+.ce-mat{background:#FAEEDA;color:#633806}
+.det-panel{margin-top:14px;border:1px solid #e5e5e5;border-radius:10px;padding:1rem 1.25rem;background:#fafafa}
+.det-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:12px;flex-wrap:wrap}
+.det-row:last-child{border-bottom:none}
+
+/* 마감 */
+.dl-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.dl-row:last-child{border-bottom:none}
+
+/* 매출 */
+.rev-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.rk{background:#fafafa;border:1px solid #e5e5e5;border-radius:10px;padding:.875rem 1rem}
+.rk-l{font-size:11px;color:#999;margin-bottom:4px}
+.rk-v{font-size:20px;font-weight:600}
+.rk-s{font-size:11px;color:#999;margin-top:3px}
+.mcard{border:1px solid #e5e5e5;border-radius:10px;margin-bottom:8px;overflow:hidden}
+.mcard-h{display:flex;align-items:center;padding:11px 16px;gap:12px;cursor:pointer;background:#fff;transition:background .12s}
+.mcard-h:hover{background:#fafafa}
+.mcard-body{display:none;border-top:1px solid #f0f0f0}
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #f0f0f0;font-size:12px}
+.mrow:last-child{border-bottom:none}
+.tog{width:34px;height:18px;border-radius:9px;background:#e0e0e0;position:relative;cursor:pointer;transition:background .2s}
+.tog.on{background:#1D9E75}
+.tog-th{width:12px;height:12px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on .tog-th{left:19px}
+.sbdg{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.sbdg-y{background:#EAF3DE;color:#27500A}
+.sbdg-n{background:#FCEBEB;color:#791F1F}
+.sbdg-p{background:#FAEEDA;color:#633806}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-out{flex:1;height:22px;background:#f5f5f5;border-radius:4px;overflow:hidden}
+.bar-in{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600}
+.note-in{width:100%;font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#1a1a1a;margin-top:6px}
+
+/* 현장별 */
+.site-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.scard{background:#fafafa;border:1px solid #e5e5e5;border-radius:10px;padding:.875rem 1rem;transition:all .15s}
+.scard:hover{box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+/* 로딩 */
+.loading{display:flex;align-items:center;justify-content:center;padding:3rem;color:#999;font-size:13px;gap:10px}
+.spinner{width:18px;height:18px;border:2px solid #e0e0e0;border-top-color:#1a1a1a;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 알림 */
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1a1a;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.bdg{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+.bdg-g{background:#EAF3DE;color:#27500A}
+.bdg-y{background:#FAEEDA;color:#633806}
+.bdg-p{background:#EEEDFE;color:#3C3489}
+.bdgs{display:flex;gap:6px;flex-wrap:wrap}
+
+.hint{font-size:11px;color:#999;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+
+<!-- 자재 팝업 -->
+<div id="mat-overlay" class="mat-overlay" style="display:none" onclick="closeMatPopup()"></div>
+<div id="mat-popup" class="mat-popup" style="display:none">
+  <div class="mat-popup-header">
+    <div class="mat-popup-title" id="mat-popup-title"></div>
+    <button class="mat-popup-close" onclick="closeMatPopup()">✕</button>
+  </div>
+  <div class="mat-popup-opts">
+    <button class="mat-opt" id="opt-done"    onclick="setMat('완료')"><span class="mat-opt-icon">✓</span>완료</button>
+    <button class="mat-opt" id="opt-pending" onclick="setMat('미정')"><span class="mat-opt-icon">—</span>미정</button>
+    <button class="mat-opt" id="opt-date"    onclick="showDatePicker()"><span class="mat-opt-icon">📅</span>날짜 지정</button>
+  </div>
+  <div class="mat-date-section" id="mat-date-section" style="display:none">
+    <div class="mat-date-label">입고 예정일 선택</div>
+    <input type="date" class="mat-date-input" id="mat-date-input" value="2026-04-27">
+    <button class="mat-date-confirm" onclick="confirmDate()">날짜 적용</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="app">
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-left">
+      <span class="logo">⚡ EV PIT 출하 관리</span>
+      <div class="live-dot"></div>
+      <span class="live-label">실시간 동기화</span>
+    </div>
+    <div class="header-right">
+      <span class="sync-time" id="sync-time">데이터 로딩 중...</span>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-section">
+    <div class="kpi-grid">
+      <div class="kpi-card active" id="kpi-0" onclick="goKpi('list')">
+        <div class="kpi-label">전체 건수</div>
+        <div class="kpi-value">27</div>
+        <div class="kpi-sub">수량 기준</div>
+      </div>
+      <div class="kpi-card" id="kpi-1" onclick="goKpi('done')">
+        <div class="kpi-label">출하완료</div>
+        <div class="kpi-value" style="color:#1D9E75" id="kv-done">-</div>
+        <div class="kpi-sub" id="ks-done">-</div>
+      </div>
+      <div class="kpi-card" id="kpi-2" onclick="goKpi('wait')">
+        <div class="kpi-label">출하대기</div>
+        <div class="kpi-value" style="color:#BA7517" id="kv-wait">-</div>
+        <div class="kpi-sub">P열 출하대기 기준</div>
+      </div>
+      <div class="kpi-card" id="kpi-3" onclick="goKpi('mfg')">
+        <div class="kpi-label">제작중</div>
+        <div class="kpi-value" style="color:#534AB7" id="kv-mfg">-</div>
+        <div class="kpi-sub">사전작업 완료 기준</div>
+      </div>
+      <div class="kpi-card" id="kpi-4" onclick="goKpi('revenue')">
+        <div class="kpi-label">총 매출</div>
+        <div class="kpi-value" style="font-size:18px">3,120만</div>
+        <div class="kpi-sub" id="ks-rev">매출·정산 보기 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 + 패널 -->
+  <div class="tab-section">
+    <div class="tab-bar">
+      <button class="tab on"  onclick="goTab('list',this)">공정 현황</button>
+      <button class="tab"     onclick="goTab('calendar',this)">캘린더</button>
+      <button class="tab"     onclick="goTab('deadline',this)">마감 일정</button>
+      <button class="tab"     onclick="goTab('summary',this)">현장별</button>
+      <button class="tab"     onclick="goTab('revenue',this)">매출·정산</button>
+    </div>
+
+    <!-- 공정 현황 -->
+    <div id="pane-list" class="pane on">
+      <div class="hint">✎ 바닥판·옆판 클릭 시 입고 상태 변경 &nbsp;|&nbsp; 공정 단계 ○ 클릭 시 완료/미완료 전환 (자동 저장)</div>
+      <div class="filt-row" id="list-filt">
+        <button class="fb on" data-f="all"  onclick="filt('all',this)">전체</button>
+        <button class="fb"    data-f="done" onclick="filt('done',this)">출하완료</button>
+        <button class="fb"    data-f="wait" onclick="filt('wait',this)">출하대기</button>
+        <button class="fb"    data-f="mat"  onclick="filt('mat',this)">자재 예정</button>
+        <button class="fb"    data-f="mfg"  onclick="filt('mfg',this)">제작중</button>
+        <div class="dl-wrap">
+          <select class="dl-select" id="dl-select" onchange="filtDl(this)">
+            <option value="">마감 월 선택</option>
+            <option value="1월">1월</option>
+            <option value="2월">2월</option>
+            <option value="3월">3월</option>
+            <option value="4월">4월</option>
+            <option value="5월">5월</option>
+          </select>
+          <span class="dl-arrow">▼</span>
+        </div>
+      </div>
+      <div id="list-loading" class="loading"><div class="spinner"></div>데이터 불러오는 중...</div>
+      <div class="tscroll" id="list-table" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th class="left" rowspan="2" style="min-width:22px">No</th>
+              <th class="left" rowspan="2" style="min-width:130px">현장명</th>
+              <th rowspan="2" style="min-width:46px">동</th>
+              <th rowspan="2" style="min-width:40px">구분</th>
+              <th rowspan="2" style="min-width:52px">PIT</th>
+              <th rowspan="2" style="min-width:130px">규격</th>
+              <th colspan="2" class="sep" style="border-bottom:1px solid #f0f0f0">자재입고</th>
+              <th colspan="4" class="sep" style="border-bottom:1px solid #f0f0f0">공정 단계</th>
+              <th rowspan="2" class="sep" style="min-width:76px">출하 상태</th>
+              <th rowspan="2" style="min-width:56px">상차일</th>
+              <th rowspan="2" style="min-width:56px">도착일</th>
+              <th rowspan="2" style="min-width:46px">마감</th>
+              <th rowspan="2" class="left" style="min-width:130px">비고</th>
+            </tr>
+            <tr>
+              <th class="sep" style="min-width:80px;font-size:10px;color:#c07000">바닥판</th>
+              <th style="min-width:80px;font-size:10px;color:#c07000">옆판</th>
+              <th class="sep" style="min-width:56px;font-size:10px">사전작업</th>
+              <th style="min-width:52px;font-size:10px">바닥판</th>
+              <th style="min-width:52px;font-size:10px">측면판</th>
+              <th style="min-width:44px;font-size:10px">용접</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 출하완료 -->
+    <div id="pane-done" class="pane">
+      <div class="status-header">
+        <div><div class="status-title" style="color:#1D9E75">출하완료</div><div class="status-count" id="done-count-txt"></div></div>
+        <div class="status-tags" id="done-summary"></div>
+      </div>
+      <div class="card-grid" id="done-grid"></div>
+    </div>
+
+    <!-- 출하대기 -->
+    <div id="pane-wait" class="pane">
+      <div class="status-header">
+        <div><div class="status-title" style="color:#BA7517">출하대기</div><div class="status-count" id="wait-count-txt"></div></div>
+        <div class="status-tags" id="wait-summary"></div>
+      </div>
+      <div class="card-grid" id="wait-grid"></div>
+    </div>
+
+    <!-- 제작중 -->
+    <div id="pane-mfg" class="pane">
+      <div class="status-header">
+        <div><div class="status-title" style="color:#534AB7">제작중</div><div class="status-count" id="mfg-count-txt"></div></div>
+        <div class="status-tags" id="mfg-summary"></div>
+      </div>
+      <div class="card-grid" id="mfg-grid"></div>
+    </div>
+
+    <!-- 캘린더 -->
+    <div id="pane-calendar" class="pane">
+      <div class="cal-head">
+        <div class="cal-nav">
+          <button onclick="cmove(-1)">←</button>
+          <span class="cal-title" id="ctitle"></span>
+          <button onclick="cmove(1)">→</button>
+        </div>
+        <div class="cal-leg">
+          <div class="leg"><div class="ldot" style="background:#B5D4F4"></div>상차일</div>
+          <div class="leg"><div class="ldot" style="background:#C0DD97"></div>현장도착</div>
+          <div class="leg"><div class="ldot" style="background:#FAC775"></div>자재입고</div>
+        </div>
+      </div>
+      <div class="cgrid" id="cdow"></div>
+      <div class="cgrid" style="margin-top:3px" id="cbody"></div>
+      <div id="cdet" style="display:none"></div>
+    </div>
+
+    <!-- 마감 일정 -->
+    <div id="pane-deadline" class="pane">
+      <div style="border:1px solid #e5e5e5;border-radius:10px;padding:1rem 1.25rem">
+        <div style="font-size:12px;color:#999;margin-bottom:14px;font-weight:500">월별 마감 진행률</div>
+        <div id="dl-list"></div>
+      </div>
+    </div>
+
+    <!-- 현장별 -->
+    <div id="pane-summary" class="pane">
+      <div class="site-grid" id="site-grid"></div>
+    </div>
+
+    <!-- 매출·정산 -->
+    <div id="pane-revenue" class="pane">
+      <div class="rev-kpi">
+        <div class="rk"><div class="rk-l">총 매출</div><div class="rk-v">3,120만원</div><div class="rk-s">27건</div></div>
+        <div class="rk"><div class="rk-l">정산 완료</div><div class="rk-v" style="color:#1D9E75" id="rv-done">0만원</div><div class="rk-s" id="rv-done-s">0개월</div></div>
+        <div class="rk"><div class="rk-l">미정산</div><div class="rk-v" style="color:#E24B4A" id="rv-left">3,120만원</div><div class="rk-s" id="rv-left-s">5개월 대기</div></div>
+      </div>
+      <div style="border:1px solid #e5e5e5;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px">
+        <div style="font-size:12px;color:#999;margin-bottom:12px;font-weight:500">월별 매출</div>
+        <div id="barchart"></div>
+      </div>
+      <div id="mcards"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Supabase 연결 ──────────────────────────────────────────
+const SUPABASE_URL = 'https://yfwdczcsoiwumnsyoehm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlmd2RjemNzb2l3dW1uc3lvZWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjM4OTEsImV4cCI6MjA5MjgzOTg5MX0.3huEL35y9ub4yfDTLCLfJXDbbg85_hTQn9vpp0e5fIU';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let D = [];         // pit_items
+let stepState = {}; // pit_steps
+let settle = {};    // settle_status
+let popupTarget = null;
+
+// ── 초기 데이터 로드 ───────────────────────────────────────
+async function loadAll() {
+  try {
+    const [itemsRes, stepsRes, settleRes] = await Promise.all([
+      sb.from('pit_items').select('*').order('no'),
+      sb.from('pit_steps').select('*'),
+      sb.from('settle_status').select('*'),
+    ]);
+    D = itemsRes.data || [];
+    (stepsRes.data || []).forEach(r => {
+      stepState[r.item_no] = { pre: r.pre, bp: r.bp, sp: r.sp, weld: r.weld };
+    });
+    (settleRes.data || []).forEach(r => {
+      settle[r.month] = { on: r.settled, note: r.note || '' };
+    });
+    document.getElementById('list-loading').style.display = 'none';
+    document.getElementById('list-table').style.display = 'block';
+    updateSyncTime();
+    initKPI(); renderTable(); renderCal(); renderDL(); renderSites();
+    renderDoneCards(); renderWaitCards(); renderMfgCards(); renderRev();
+    subscribeRealtime();
+  } catch(e) {
+    document.getElementById('list-loading').innerHTML = '⚠️ 데이터 로드 실패. 새로고침해주세요.';
+  }
+}
+
+function updateSyncTime() {
+  const now = new Date();
+  document.getElementById('sync-time').textContent =
+    `마지막 동기화: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+}
+
+// ── 실시간 구독 ────────────────────────────────────────────
+function subscribeRealtime() {
+  sb.channel('realtime-all')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_items' }, payload => {
+      const idx = D.findIndex(d => d.id === payload.new?.id);
+      if (payload.eventType === 'UPDATE' && idx >= 0) D[idx] = payload.new;
+      updateSyncTime(); refreshAll(); showToast('📦 자재 정보가 업데이트됐어요');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_steps' }, payload => {
+      if (payload.new) stepState[payload.new.item_no] = { pre: payload.new.pre, bp: payload.new.bp, sp: payload.new.sp, weld: payload.new.weld };
+      updateSyncTime(); refreshAll(); showToast('✅ 공정 단계가 업데이트됐어요');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settle_status' }, payload => {
+      if (payload.new) settle[payload.new.month] = { on: payload.new.settled, note: payload.new.note || '' };
+      updateSyncTime(); renderRev(); showToast('💰 정산 정보가 업데이트됐어요');
+    })
+    .subscribe();
+}
+
+function refreshAll() {
+  initKPI(); renderTable(); renderDL(); renderSites();
+  renderDoneCards(); renderWaitCards(); renderMfgCards();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── 상태 판별 ──────────────────────────────────────────────
+function isDone(d){ return d.p_ship === '완료'; }
+function isWait(d){ return d.p_ship === '출하대기'; }
+function isMfg(d) { return !!(stepState[d.no]?.pre) && !isDone(d) && !isWait(d); }
+function getStatus(d) {
+  if (isDone(d))  return { label:'출하완료',   cls:'p-done' };
+  if (isWait(d))  return { label:'출하대기',   cls:'p-wait' };
+  if (isMfg(d))   return { label:'제작중',     cls:'p-mfg'  };
+  if (d.mat_b && d.mat_b !== '완료' && d.mat_b !== '미정') return { label:'바닥판 예정', cls:'p-plan' };
+  if (d.mat_s && d.mat_s !== '완료' && d.mat_s !== '미정') return { label:'옆판 예정',   cls:'p-plan' };
+  return { label:'대기', cls:'p-plan' };
+}
+function fmtDate(ds) { if(!ds) return '—'; const p = (ds+'').slice(0,10).split('-'); return `${parseInt(p[1])}/${parseInt(p[2])}`; }
+
+// ── 공정 단계 토글 (DB 저장) ───────────────────────────────
+async function toggleStep(no, key) {
+  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
+  stepState[no][key] = !stepState[no][key];
+  initKPI(); renderTable();
+  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
+  showToast('저장됐어요 ✓');
+}
+
+// ── 자재 팝업 ──────────────────────────────────────────────
+function openMatPopup(no, field, event) {
+  event.stopPropagation();
+  popupTarget = { no, field };
+  const d = D.find(x => x.no === no);
+  const cur = field === 'b' ? d.mat_b : d.mat_s;
+  document.getElementById('mat-popup-title').textContent = `No.${no} ${d.pit} — ${field==='b'?'바닥판':'옆판'}`;
+  document.getElementById('opt-done').className    = 'mat-opt' + (cur==='완료'?' selected':'');
+  document.getElementById('opt-pending').className = 'mat-opt' + (cur==='미정'?' selected':'');
+  const isDate = cur && cur !== '완료' && cur !== '미정';
+  document.getElementById('opt-date').className = 'mat-opt' + (isDate ? ' selected' : '');
+  document.getElementById('mat-date-section').style.display = isDate ? 'block' : 'none';
+  const popup = document.getElementById('mat-popup');
+  popup.style.display = 'block';
+  document.getElementById('mat-overlay').style.display = 'block';
+  const rect = event.currentTarget.getBoundingClientRect();
+  let left = rect.left + window.scrollX;
+  let top  = rect.bottom + window.scrollY + 4;
+  if (left + 230 > window.innerWidth) left = window.innerWidth - 234;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+function closeMatPopup() {
+  document.getElementById('mat-popup').style.display = 'none';
+  document.getElementById('mat-overlay').style.display = 'none';
+  popupTarget = null;
+}
+async function setMat(val) {
+  if (!popupTarget) return;
+  const { no, field } = popupTarget;
+  const d = D.find(x => x.no === no);
+  const update = field === 'b' ? { mat_b: val } : { mat_s: val };
+  Object.assign(d, update);
+  closeMatPopup();
+  initKPI(); renderTable();
+  await sb.from('pit_items').update(update).eq('no', no);
+  showToast('저장됐어요 ✓');
+}
+function showDatePicker() {
+  document.getElementById('mat-date-section').style.display = 'block';
+  document.getElementById('opt-date').className = 'mat-opt selected';
+}
+async function confirmDate() {
+  if (!popupTarget) return;
+  const v = document.getElementById('mat-date-input').value;
+  if (!v) return;
+  const p = v.split('-');
+  await setMat(`${parseInt(p[1])}/${parseInt(p[2])} 예정`);
+}
+
+function matCellHtml(no, field) {
+  const d = D.find(x => x.no === no);
+  const val = field === 'b' ? d?.mat_b : d?.mat_s;
+  let cls = 'mat-none', txt = '—';
+  if (val === '완료') { cls = 'mat-done'; txt = '완료'; }
+  else if (val === '미정') { cls = 'mat-none'; txt = '미정'; }
+  else if (val) { cls = 'mat-date'; txt = val; }
+  return `<div class="mat-cell" onclick="openMatPopup(${no},'${field}',event)"><span class="mat-val ${cls}">${txt}</span><span class="mat-edit-icon">✎</span></div>`;
+}
+
+function ckBtn(no, key) {
+  const done = stepState[no]?.[key];
+  return `<button class="ck ${done?'ck-done':'ck-wait'}" onclick="toggleStep(${no},'${key}')">${done?'✓':'—'}</button>`;
+}
+
+// ── KPI ────────────────────────────────────────────────────
+function initKPI() {
+  const done = D.filter(isDone).length;
+  const wait = D.filter(isWait).length;
+  const mfg  = D.filter(isMfg).length;
+  document.getElementById('kv-done').textContent = done;
+  document.getElementById('ks-done').textContent = Math.round(done/27*100) + '% 완료';
+  document.getElementById('kv-wait').textContent = wait;
+  document.getElementById('kv-mfg').textContent  = mfg;
+}
+
+// ── 테이블 렌더 ────────────────────────────────────────────
+let cf = 'all';
+function filt(f, btn) {
+  cf = f;
+  document.getElementById('dl-select').value = '';
+  document.getElementById('dl-select').classList.remove('on');
+  document.querySelectorAll('#list-filt .fb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderTable();
+}
+function filtDl(sel) {
+  const val = sel.value;
+  document.querySelectorAll('#list-filt .fb').forEach(b => b.classList.remove('on'));
+  if (val) { cf = 'dl:' + val; sel.classList.add('on'); }
+  else { cf = 'all'; sel.classList.remove('on'); document.querySelector('#list-filt .fb[data-f=all]').classList.add('on'); }
+  renderTable();
+}
+
+function renderTable() {
+  let rows = D;
+  if (cf === 'done')      rows = D.filter(isDone);
+  else if (cf === 'wait') rows = D.filter(isWait);
+  else if (cf === 'mat')  rows = D.filter(d => (d.mat_b && d.mat_b !== '완료') || (d.mat_s && d.mat_s !== '완료'));
+  else if (cf === 'mfg')  rows = D.filter(isMfg);
+  else if (cf.startsWith('dl:')) rows = D.filter(d => d.dl === cf.slice(3));
+  document.getElementById('tbody').innerHTML = rows.map(d => {
+    const st = getStatus(d);
+    return `<tr>
+      <td class="left" style="color:#999;font-size:11px">${d.no}</td>
+      <td class="left" style="font-weight:600">${d.site}</td>
+      <td style="color:#999">${d.dong}</td>
+      <td style="color:#999">${d.gu}</td>
+      <td style="font-weight:600">${d.pit}</td>
+      <td style="color:#999;font-size:11px">${d.spec}</td>
+      <td class="sep">${matCellHtml(d.no,'b')}</td>
+      <td>${matCellHtml(d.no,'s')}</td>
+      <td class="sep">${ckBtn(d.no,'pre')}</td>
+      <td>${ckBtn(d.no,'bp')}</td>
+      <td>${ckBtn(d.no,'sp')}</td>
+      <td>${ckBtn(d.no,'weld')}</td>
+      <td class="sep"><span class="pill ${st.cls}">${st.label}</span></td>
+      <td style="color:#999">${fmtDate(d.sd)}</td>
+      <td style="color:#999">${fmtDate(d.ad)}</td>
+      <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
+      <td class="left" style="color:#999;font-size:11px;white-space:normal;max-width:130px;word-break:keep-all;line-height:1.5">${d.note||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 카드 뷰 ────────────────────────────────────────────────
+const STEPS = [{key:'pre',label:'사전작업'},{key:'bp',label:'바닥판'},{key:'sp',label:'측면판'},{key:'weld',label:'용접'}];
+function buildCard(d, ac, sh) {
+  const st = getStatus(d);
+  const s = sh ? `<div class="card-divider"></div><div style="font-size:10px;color:#999;margin-bottom:6px">공정 단계</div><div class="step-row">${STEPS.map(s=>{const dn=stepState[d.no]?.[s.key];return`<div class="step-item"><div class="step-dot ${dn?'sd-done':'sd-wait'}">${dn?'✓':'·'}</div><div class="step-label ${dn?'done':''}">${s.label}</div></div>`;}).join('')}</div>` : '';
+  return `<div class="item-card" style="border-left:3px solid ${ac}">
+    <div class="card-top"><div><div class="card-pit">${d.pit}</div><div class="card-gu">${d.gu}</div></div><span class="pill ${st.cls}">${st.label}</span></div>
+    <div class="card-site">${d.site} · ${d.dong}</div>
+    <div class="card-spec">${d.spec}</div>
+    ${s}<div class="card-divider"></div>
+    <div class="card-meta"><span>상차 ${fmtDate(d.sd)}</span><span>도착 ${fmtDate(d.ad)}</span><span>${d.dl} 마감</span><span style="color:#BA7517">${(d.price/10000).toLocaleString()}만원</span></div>
+    ${d.note?`<div class="card-note">${d.note}</div>`:''}
+  </div>`;
+}
+function renderDoneCards() {
+  const rows = D.filter(isDone), total = rows.reduce((s,d)=>s+d.price,0);
+  document.getElementById('done-count-txt').textContent = `총 ${rows.length}건 · ${(total/10000).toLocaleString()}만원`;
+  const byDl = {}; rows.forEach(d=>{if(!byDl[d.dl])byDl[d.dl]=0;byDl[d.dl]++;});
+  document.getElementById('done-summary').innerHTML = Object.entries(byDl).map(([m,c])=>`<span class="pill p-done" style="font-size:10px">${m} ${c}건</span>`).join('');
+  document.getElementById('done-grid').innerHTML = rows.map(d=>buildCard(d,'#1D9E75',false)).join('');
+}
+function renderWaitCards() {
+  const rows = D.filter(isWait), total = rows.reduce((s,d)=>s+d.price,0);
+  document.getElementById('wait-count-txt').textContent = `총 ${rows.length}건 · ${(total/10000).toLocaleString()}만원`;
+  document.getElementById('wait-summary').innerHTML = rows.map(d=>`<span class="pill p-wait" style="font-size:10px">${d.pit}</span>`).join('');
+  document.getElementById('wait-grid').innerHTML = rows.map(d=>buildCard(d,'#EF9F27',true)).join('');
+}
+function renderMfgCards() {
+  const rows = D.filter(isMfg);
+  document.getElementById('mfg-count-txt').textContent = `총 ${rows.length}건`;
+  document.getElementById('mfg-summary').innerHTML = rows.map(d=>`<span class="pill p-mfg" style="font-size:10px">${d.pit}</span>`).join('');
+  document.getElementById('mfg-grid').innerHTML = rows.length === 0
+    ? `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#999;font-size:13px">현재 제작중인 항목이 없습니다</div>`
+    : rows.map(d=>buildCard(d,'#7F77DD',true)).join('');
+}
+
+// ── 캘린더 ─────────────────────────────────────────────────
+function buildEvMap() {
+  const m = {}; const add = (ds,ev) => { if(!ds)return; const k=(ds+'').slice(0,10); if(!m[k])m[k]=[]; m[k].push(ev); };
+  D.forEach(d => {
+    if (isDone(d)||isWait(d)) { add(d.sd,{t:'ship',l:'상차 '+d.pit,d}); add(d.ad,{t:'arr',l:'도착 '+d.pit,d}); }
+    else if (d.sd) add(d.sd, {t:'ship',l:'상차(예정) '+d.pit,d});
+  });
+  return m;
+}
+let CY=2026, CM=3;
+const DOWS=['일','월','화','수','목','금','토'], MNAMES=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+function renderCal() {
+  const EV = buildEvMap(); const today = new Date(2026,3,24);
+  document.getElementById('ctitle').textContent = `${CY}년 ${MNAMES[CM]}`;
+  document.getElementById('cdow').innerHTML = DOWS.map((d,i)=>`<div class="cdow${i===0?' sun':''}">${d}</div>`).join('');
+  const fd=new Date(CY,CM,1).getDay(), dim=new Date(CY,CM+1,0).getDate(), dip=new Date(CY,CM,0).getDate();
+  let cells=[]; for(let i=fd-1;i>=0;i--) cells.push({day:dip-i,cur:false}); for(let d=1;d<=dim;d++) cells.push({day:d,cur:true}); while(cells.length%7!==0) cells.push({day:cells.length-dim-fd+1,cur:false});
+  document.getElementById('cbody').innerHTML = cells.map((c,idx) => {
+    if (!c.cur) return `<div class="cday other"><div class="dnum">${c.day}</div></div>`;
+    const mm=String(CM+1).padStart(2,'0'), dd=String(c.day).padStart(2,'0'), ds=`${CY}-${mm}-${dd}`;
+    const isT=c.day===today.getDate()&&CM===today.getMonth()&&CY===today.getFullYear();
+    const evs=EV[ds]||[], isSun=idx%7===0;
+    const eh=evs.slice(0,3).map(e=>`<div class="cev ${e.t==='ship'?'ce-ship':e.t==='arr'?'ce-arr':'ce-mat'}">${e.l.length>13?e.l.slice(0,13)+'…':e.l}</div>`).join('');
+    const more=evs.length>3?`<div style="font-size:10px;color:#999">+${evs.length-3}</div>`:'';
+    return `<div class="cday${isT?' today':''}" onclick="showDet('${ds}',event)"><div class="dnum${isSun?' sun':''}">${c.day}</div>${eh}${more}</div>`;
+  }).join('');
+}
+function showDet(ds, event) {
+  const EV = buildEvMap(); const evs=EV[ds]||[], el=document.getElementById('cdet');
+  if(!evs.length){el.style.display='none';return;}
+  const d2=new Date(ds); el.style.display='block';
+  el.innerHTML=`<div class="det-panel"><div style="font-size:13px;font-weight:600;margin-bottom:8px">${d2.getMonth()+1}월 ${d2.getDate()}일 · ${evs.length}건</div>${evs.map(e=>{const p=e.d,badge=e.t==='ship'?'<span class="pill p-mfg">상차</span>':e.t==='arr'?'<span class="pill p-done">도착</span>':'<span class="pill p-wait">자재입고</span>';return`<div class="det-row">${badge}<span style="font-weight:500;flex:1">${p.site} ${p.dong} ${p.pit}</span><span style="color:#999;font-size:11px">${p.spec}</span></div>`;}).join('')}</div>`;
+}
+function cmove(dir){CM+=dir;if(CM>11){CM=0;CY++;}if(CM<0){CM=11;CY--;}document.getElementById('cdet').style.display='none';renderCal();}
+
+// ── 마감 일정 ──────────────────────────────────────────────
+function renderDL() {
+  const mons=['1월','2월','3월','4월','5월'], colors=['#1D9E75','#1D9E75','#1D9E75','#EF9F27','#378ADD'];
+  document.getElementById('dl-list').innerHTML = mons.map((m,i)=>{
+    const items=D.filter(d=>d.dl===m), done=items.filter(isDone).length;
+    const pct=items.length?Math.round(done/items.length*100):0;
+    return `<div class="dl-row"><span style="font-size:13px;font-weight:600;min-width:36px">${m}</span><span style="font-size:12px;color:#999;min-width:100px">${items.length}건 · 완료 ${done}건</span><div style="flex:1;height:8px;border-radius:4px;background:#f0f0f0"><div style="height:100%;border-radius:4px;width:${pct}%;background:${colors[i]}"></div></div><span style="font-size:13px;font-weight:600;min-width:38px;text-align:right;color:${colors[i]}">${pct}%</span></div>`;
+  }).join('');
+}
+
+// ── 현장별 ─────────────────────────────────────────────────
+function renderSites() {
+  const s={}; D.forEach(d=>{if(!s[d.site])s[d.site]={t:0,done:0,wait:0,price:0};s[d.site].t++;if(isDone(d))s[d.site].done++;else if(isWait(d))s[d.site].wait++;s[d.site].price+=d.price;});
+  document.getElementById('site-grid').innerHTML = Object.entries(s).map(([nm,v])=>{
+    const pct=Math.round(v.done/v.t*100);
+    return `<div class="scard"><div style="font-size:13px;font-weight:600;margin-bottom:7px">${nm}</div><div style="display:flex;gap:5px;margin-bottom:8px"><span class="pill p-done">${v.done}건 완료</span>${v.wait>0?`<span class="pill p-wait">${v.wait}건 대기</span>`:''}</div><div style="height:4px;border-radius:2px;background:#f0f0f0;margin-bottom:8px"><div style="height:100%;border-radius:2px;width:${pct}%;background:#1D9E75"></div></div><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#999">금액</span><span style="font-weight:600">${(v.price/10000).toLocaleString()}만원</span></div></div>`;
+  }).join('');
+}
+
+// ── 매출·정산 ──────────────────────────────────────────────
+const MLIST=['1월','2월','3월','4월','5월'];
+function getMD(){return MLIST.map(m=>{const items=D.filter(d=>d.dl===m);return{m,items,total:items.reduce((s,d)=>s+d.price,0),done:items.filter(isDone).length,cnt:items.length};});}
+function renderRev() {
+  const md=getMD(), maxA=Math.max(...md.map(d=>d.total));
+  const sdT=md.filter(d=>settle[d.m]?.on).reduce((s,d)=>s+d.total,0), sdC=md.filter(d=>settle[d.m]?.on).length;
+  document.getElementById('rv-done').textContent=(sdT/10000).toLocaleString()+'만원';
+  document.getElementById('rv-done-s').textContent=sdC+'개월 완료';
+  document.getElementById('rv-left').textContent=((31200000-sdT)/10000).toLocaleString()+'만원';
+  document.getElementById('rv-left-s').textContent=(5-sdC)+'개월 대기';
+  document.getElementById('ks-rev').textContent=sdC>0?`정산완료 ${sdC}개월`:'매출·정산 보기 →';
+  document.getElementById('barchart').innerHTML=md.map(d=>{
+    const pct=Math.round(d.total/maxA*100), on=settle[d.m]?.on;
+    return `<div class="bar-row"><span style="font-size:12px;color:#999;min-width:28px">${d.m}</span><div class="bar-out"><div class="bar-in" style="width:${pct}%;background:${on?'#1D9E75':'#378ADD'};color:${on?'#27500A':'#0C447C'}">${d.cnt}건</div></div><span style="font-size:12px;min-width:60px;text-align:right;color:#999">${(d.total/10000).toLocaleString()}만</span><span class="sbdg ${on?'sbdg-y':'sbdg-n'}">${on?'정산완료':'미정산'}</span></div>`;
+  }).join('');
+  document.getElementById('mcards').innerHTML=md.map((d,i)=>{
+    const on=settle[d.m]?.on||false;
+    return `<div class="mcard"><div class="mcard-h" onclick="toggleMC('mc${i}')">
+      <span style="font-size:13px;font-weight:600">${d.m} 마감</span>
+      <span style="font-size:12px;color:#999">${d.cnt}건</span>
+      <span class="sbdg ${on?'sbdg-y':d.m==='5월'?'sbdg-p':'sbdg-n'}">${on?'정산완료':d.m==='5월'?'정산예정':'미정산'}</span>
+      <span style="font-size:13px;font-weight:600;margin-left:auto;margin-right:12px">${(d.total/10000).toLocaleString()}만원</span>
+      <div style="display:flex;align-items:center;gap:6px" onclick="event.stopPropagation();toggleSettle('${d.m}')">
+        <div class="tog${on?' on':''}"><div class="tog-th"></div></div>
+        <span style="font-size:11px;color:${on?'#1D9E75':'#999'};font-weight:${on?'600':'400'}">${on?'정산완료':'정산하기'}</span>
+      </div></div>
+    <div id="mc${i}" class="mcard-body">
+      ${d.items.map(it=>{const st=getStatus(it);return`<div class="mrow"><span class="pill ${st.cls}">${st.label}</span><span style="flex:1;font-weight:500">${it.site}</span><span style="color:#999;min-width:40px">${it.pit}</span><span style="font-weight:600;min-width:64px;text-align:right">${(it.price/10000).toLocaleString()}만원</span></div>`;}).join('')}
+      <div style="padding:8px 16px;background:#fafafa">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px"><span>소계</span><span>${(d.total/10000).toLocaleString()}만원</span></div>
+        <input class="note-in" placeholder="메모 (입금일, 계산서 번호 등)" value="${settle[d.m]?.note||''}" oninput="saveNote('${d.m}',this.value)">
+      </div>
+    </div></div>`;
+  }).join('');
+}
+function toggleMC(id){const el=document.getElementById(id);el.style.display=el.style.display==='block'?'none':'block';}
+async function toggleSettle(m) {
+  if (!settle[m]) settle[m] = { on: false, note: '' };
+  settle[m].on = !settle[m].on;
+  renderRev();
+  await sb.from('settle_status').update({ settled: settle[m].on }).eq('month', m);
+  showToast('저장됐어요 ✓');
+}
+async function saveNote(m, val) {
+  if (!settle[m]) settle[m] = { on: false, note: '' };
+  settle[m].note = val;
+  await sb.from('settle_status').update({ note: val }).eq('month', m);
+}
+
+// ── 탭 / KPI 네비게이션 ────────────────────────────────────
+const TAB_BTNS = ['list','calendar','deadline','summary','revenue'];
+const TAB_KPI  = { list:'kpi-0', calendar:null, deadline:null, summary:null, revenue:'kpi-4' };
+function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));document.getElementById('pane-'+name).classList.add('on');}
+function setKpi(id){document.querySelectorAll('.kpi-card').forEach(k=>k.classList.remove('active'));if(id)document.getElementById(id).classList.add('active');}
+function goTab(name,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));btn.classList.add('on');showPane(name);setKpi(TAB_KPI[name]);if(name==='revenue')renderRev();}
+function goKpi(name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  const ti=TAB_BTNS.indexOf(name); if(ti>-1) document.querySelectorAll('.tab')[ti].classList.add('on');
+  showPane(name);
+  const km={list:'kpi-0',done:'kpi-1',wait:'kpi-2',mfg:'kpi-3',revenue:'kpi-4'};
+  setKpi(km[name]||null);
+  if(name==='revenue')renderRev();
+  if(name==='done')renderDoneCards();
+  if(name==='wait')renderWaitCards();
+  if(name==='mfg')renderMfgCards();
+}
+
+// ── 시작 ──────────────────────────────────────────────────
+loadAll();
+document.getElementById('kpi-0').classList.add('active');
+</script>
+</body>
+</html>
