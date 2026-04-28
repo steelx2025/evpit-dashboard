@@ -1365,8 +1365,8 @@ tr:hover td{background:#fafafa}
         <button class="add-btn" onclick="openPanel()">＋ 항목 추가</button>
       </div>
       </div>
-      <div id="list-loading" class="loading" style="display:none;visibility:hidden"><div class="spinner"></div>데이터 불러오는 중...</div>
-      <div class="tscroll" id="list-table" style="display:block">
+      <div id="list-loading" class="loading" style="display:none!important;visibility:hidden!important"><div class="spinner"></div>데이터 불러오는 중...</div>
+      <div class="tscroll" id="list-table">
         <table>
           <thead>
             <tr>
@@ -1490,11 +1490,7 @@ let popupTarget = null;
 
 // ── 초기 데이터 로드 ───────────────────────────────────────
 async function loadAll() {
-  var ll = document.getElementById('list-loading');
-  var lt = document.getElementById('list-table');
   try {
-    if (ll) ll.style.display = 'flex';
-    if (lt) lt.style.display = 'none';
     const [itemsRes, stepsRes, settleRes] = await Promise.all([
       sb.from('pit_items').select('*').order('no'),
       sb.from('pit_steps').select('*'),
@@ -1507,22 +1503,23 @@ async function loadAll() {
     (settleRes.data || []).forEach(r => {
       settle[r.month] = { on: r.settled, note: r.note || '' };
     });
-    // ★ 성공 시 무조건 테이블 표시
-    if (ll) { ll.style.display = 'none'; ll.style.visibility = 'hidden'; }
-    if (lt) { lt.style.display = 'block'; lt.style.visibility = 'visible'; }
     updateSyncTime();
-    initKPI(); renderTable(); renderCal(); renderDL(); renderSites();
-    renderDoneCards(); renderWaitCards(); renderMfgCards(); renderRev();
+    initKPI();
+    renderTable();
+    renderCal();
+    renderDL();
+    renderSites();
+    renderDoneCards();
+    renderWaitCards();
+    renderMfgCards();
+    renderRev();
     if (!window._realtimeSubscribed) {
       subscribeRealtime();
       window._realtimeSubscribed = true;
     }
   } catch(e) {
     console.error('loadAll 오류:', e);
-    // ★ 실패 시에도 테이블 표시 (에러 메시지)
-    if (ll) { ll.style.display = 'none'; ll.style.visibility = 'hidden'; }
-    if (lt) { lt.style.display = 'block'; lt.style.visibility = 'visible'; }
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="17" style="text-align:center;padding:2rem;color:#E24B4A">⚠️ 데이터 로드 실패 — 새로고침해주세요</td></tr>';
+    alert('데이터 로드 오류: ' + e.message + '\n\nSupabase 연결을 확인해주세요.');
   }
 }
 
