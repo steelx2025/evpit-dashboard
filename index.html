@@ -1849,13 +1849,18 @@ function goKpi(name) {
 function noteCellHtml(no, note) {
   const txt = note || '—';
   const cls = note ? 'has-value' : '';
-  return `<div class="note-cell" onclick="openNoteEdit(${no}, event)">
-    <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
-    <span class="note-edit-icon">✎</span>
-  </div>
-  <div class="note-input-wrap" id="note-wrap-${no}">
-    <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
-    <button class="note-save-btn" onclick="saveNoteInline(${no})">저장</button>
+  return `<div style="display:flex;align-items:flex-start;gap:4px">
+    <button class="print-btn" onclick="openLabelModal(${no})" title="부착표지 인쇄">🖨</button>
+    <div style="flex:1">
+      <div class="note-cell" onclick="openNoteEdit(${no}, event)">
+        <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
+        <span class="note-edit-icon">✎</span>
+      </div>
+      <div class="note-input-wrap" id="note-wrap-${no}">
+        <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
+        <button class="note-save-btn" onclick="saveNoteInline(${no})">저장</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -2260,12 +2265,16 @@ async function toggleStep(no, key) {
 }
 
 function goService(name) {
+  // 1. 허브 숨기기
   document.getElementById('hub-screen').classList.remove('show');
+  // 2. 모든 서비스 숨기기
   ['pit','calendar','estimate'].forEach(function(n) {
     document.getElementById('service-' + n).style.display = 'none';
   });
+  // 3. 해당 서비스 먼저 보이기
   if (name === 'pit') {
     document.getElementById('service-pit').style.display = 'block';
+    // 4. 데이터 로드 (화면이 보이는 상태에서 렌더링)
     loadAll();
   } else if (name === 'calendar') {
     document.getElementById('service-calendar').style.display = 'block';
