@@ -1080,7 +1080,7 @@ tr:hover td{background:#fafafa}
 </div>
 
 <!-- 인쇄 전용 영역 -->
-<div id="print-area" style="display:none">
+<div id="print-area" style="display:none;position:absolute;left:-9999px;top:-9999px;visibility:hidden">
   <table class="pa-table">
     <tr class="pa-row">
       <td class="pa-key">현장명</td>
@@ -1975,6 +1975,8 @@ function doLogin() {
     scr.classList.add('fade-out');
     setTimeout(function() {
       scr.style.display = 'none';
+      sessionStorage.setItem('sx_loggedin','1');
+      saveSession('hub');
       showHub();
     }, 700);
   } else {
@@ -2036,6 +2038,8 @@ function doLogin() {
     scr.classList.add('fade-out');
     setTimeout(function() {
       scr.style.display = 'none';
+      sessionStorage.setItem('sx_loggedin','1');
+      saveSession('hub');
       showHub();
     }, 700);
   } else {
@@ -2196,6 +2200,7 @@ document.addEventListener('keydown', function(e) {
 
 // ── 허브 네비게이션 ───────────────────────────
 function showHub() {
+  saveSession('hub');
   document.getElementById('hub-screen').classList.add('show');
   document.getElementById('service-pit').style.display      = 'none';
   document.getElementById('service-calendar').style.display = 'none';
@@ -2205,6 +2210,7 @@ function showHub() {
 
 
 function backToHub() {
+  saveSession('hub');
   document.getElementById('service-pit').style.display      = 'none';
   document.getElementById('service-calendar').style.display = 'none';
   document.getElementById('service-estimate').style.display = 'none';
@@ -2251,14 +2257,26 @@ function closeLabelModal() {
   document.getElementById('label-overlay').classList.remove('open');
 }
 function printLabel() {
-  // 인쇄 영역에 데이터 복사
-  ['site','dong','pit','spec','ad'].forEach(k => {
-    const el = document.getElementById('pa-' + k);
-    if (el) el.textContent = document.getElementById('lv-' + k).textContent;
+  var pa = document.getElementById('print-area');
+  // 데이터 복사
+  ['site','dong','pit','spec','ad'].forEach(function(k) {
+    var el = document.getElementById('pa-' + k);
+    var src = document.getElementById('lv-' + k);
+    if (el && src) el.textContent = src.textContent;
   });
-  document.getElementById('print-area').style.display = 'block';
+  // 인쇄용으로 위치 복원 후 인쇄
+  pa.style.position = 'fixed';
+  pa.style.left = '0';
+  pa.style.top = '0';
+  pa.style.visibility = 'visible';
+  pa.style.display = 'block';
   window.print();
-  document.getElementById('print-area').style.display = 'none';
+  // 인쇄 후 다시 숨기기
+  pa.style.display = 'none';
+  pa.style.position = 'absolute';
+  pa.style.left = '-9999px';
+  pa.style.top = '-9999px';
+  pa.style.visibility = 'hidden';
 }
 
 // ── 출하완료 토글 ─────────────────────────────
@@ -2311,6 +2329,7 @@ function goService(name) {
   });
   if (name === 'pit') {
     document.getElementById('service-pit').style.display = 'block';
+    saveSession('pit');
     // 필터 전체로 초기화
     cf = 'all';
     var allBtn = document.querySelector('#list-filt .fb[data-f="all"]');
@@ -2327,10 +2346,46 @@ function goService(name) {
     loadAll();
   } else if (name === 'calendar') {
     document.getElementById('service-calendar').style.display = 'block';
+    saveSession('calendar');
   } else if (name === 'estimate') {
     document.getElementById('service-estimate').style.display = 'block';
+    saveSession('estimate');
   }
 }
+
+
+// ── 화면 상태 유지 (새로고침 대응) ──────────────
+function saveSession(screen) {
+  sessionStorage.setItem('sx_screen', screen);
+}
+
+function restoreSession() {
+  var loggedIn = sessionStorage.getItem('sx_loggedin');
+  var screen   = sessionStorage.getItem('sx_screen');
+
+  if (loggedIn !== '1') {
+    // 로그인 안 된 상태 → 로그인 화면 보이기
+    var ls = document.getElementById('login-screen');
+    if (ls) ls.style.display = 'flex';
+    return;
+  }
+
+  // 로그인된 상태 → 로그인 화면 숨기기
+  var ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = 'none';
+
+  if (!screen || screen === 'hub') {
+    showHub();
+  } else {
+    showHub();
+    goService(screen);
+  }
+}
+
+// DOM 준비 후 세션 복원
+document.addEventListener('DOMContentLoaded', function() {
+  restoreSession();
+});
 
 </script>
 </body>
