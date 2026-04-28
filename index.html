@@ -747,10 +747,10 @@ tr:hover td{background:#fafafa}
 /* 카드 그리드 */
 .hub-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:20px;
   width:100%;
-  max-width:900px;
+  max-width:1200px;
 }
 .hub-card{
   background:rgba(255,255,255,.04);
@@ -788,6 +788,12 @@ tr:hover td{background:#fafafa}
 }
 .hub-card-cal:hover{ border-color:rgba(0,153,255,.3); }
 .hub-card-cal .hub-card-icon{ background:linear-gradient(135deg,#0099ff,#0066cc); }
+
+.hub-card-hr::before{
+  background:linear-gradient(135deg,rgba(251,146,60,.06) 0%,transparent 60%);
+}
+.hub-card-hr:hover{ border-color:rgba(251,146,60,.3); }
+.hub-card-hr .hub-card-icon{ background:linear-gradient(135deg,#fb923c,#f97316); }
 
 .hub-card-est::before{
   background:linear-gradient(135deg,rgba(168,85,247,.06) 0%,transparent 60%);
@@ -1101,6 +1107,161 @@ tr:hover td{background:#fafafa}
 .excel-btn:active { transform:scale(.97); }
 .excel-btn:disabled { background:#ccc;cursor:not-allowed;transform:none; }
 
+
+/* ══════════════════════════════════
+   직원 관리 시스템
+══════════════════════════════════ */
+.hr-wrap {
+  background:#f5f5f7;min-height:calc(100vh - 52px);
+  padding:24px 2rem;
+}
+
+/* 탭 */
+.hr-tabs {
+  display:flex;gap:0;background:#fff;
+  border-radius:12px;margin-bottom:20px;
+  padding:6px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+  width:fit-content;
+}
+.hr-tab {
+  padding:8px 20px;border-radius:8px;border:none;
+  background:transparent;font-size:13px;font-weight:500;
+  color:#999;cursor:pointer;transition:all .15s;
+}
+.hr-tab.on {
+  background:#1a1a1a;color:#fff;
+}
+
+/* 직원 선택 + 월 선택 헤더 */
+.hr-header {
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;flex-wrap:wrap;gap:12px;
+}
+.hr-header-left { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+.hr-emp-btns { display:flex;gap:8px; }
+.hr-emp-btn {
+  padding:7px 18px;border-radius:20px;border:1.5px solid #e0e0e0;
+  background:#fff;font-size:13px;font-weight:500;color:#666;
+  cursor:pointer;transition:all .15s;
+}
+.hr-emp-btn.on { background:#1a1a1a;color:#fff;border-color:#1a1a1a; }
+
+.hr-month-sel {
+  display:flex;align-items:center;gap:8px;
+}
+.hr-month-btn {
+  width:30px;height:30px;border-radius:50%;border:1px solid #e0e0e0;
+  background:#fff;cursor:pointer;font-size:14px;color:#666;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.hr-month-btn:hover { background:#f5f5f5; }
+.hr-month-label {
+  font-size:16px;font-weight:700;min-width:80px;text-align:center;
+}
+
+/* KPI 카드 */
+.hr-kpi-row {
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:12px;margin-bottom:20px;
+}
+.hr-kpi {
+  background:#fff;border-radius:12px;padding:16px 18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+.hr-kpi-label { font-size:11px;color:#999;margin-bottom:6px;font-weight:500; }
+.hr-kpi-value { font-size:24px;font-weight:700; }
+.hr-kpi-sub { font-size:11px;color:#999;margin-top:3px; }
+
+/* 근무표 테이블 */
+.hr-table-wrap {
+  background:#fff;border-radius:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+.hr-table-header {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid #f0f0f0;
+}
+.hr-table-title { font-size:15px;font-weight:700; }
+.hr-excel-btn {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:20px;
+  background:#1D7A45;color:#fff;border:none;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .15s;
+}
+.hr-excel-btn:hover { background:#155e34; }
+
+table.hr-tbl { border-collapse:collapse;width:100%; }
+table.hr-tbl th {
+  padding:10px 12px;text-align:center;
+  font-size:11px;font-weight:600;color:#999;
+  background:#fafafa;border-bottom:1px solid #f0f0f0;
+}
+table.hr-tbl td {
+  padding:6px 10px;border-bottom:1px solid #f5f5f5;
+  text-align:center;font-size:13px;vertical-align:middle;
+}
+table.hr-tbl tr:last-child td { border-bottom:none; }
+table.hr-tbl tr:hover td { background:#fafafa; }
+table.hr-tbl tr.weekend td { background:#fff8f8; }
+table.hr-tbl tr.weekend td.date-col { color:#E24B4A;font-weight:600; }
+table.hr-tbl tr.today-row td { background:#EAF3DE; }
+table.hr-tbl tr.sum-row td {
+  background:#1a1a1a;color:#fff;font-weight:700;
+  font-size:13px;
+}
+
+/* 공수 선택 셀 */
+.ks-select {
+  padding:5px 8px;border-radius:6px;border:1px solid #e0e0e0;
+  background:#fff;font-size:12px;color:#1a1a1a;
+  cursor:pointer;outline:none;width:90px;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+  padding-right:24px;
+}
+.ks-select:focus { border-color:#1a1a1a; }
+.ks-select.steelx { background-color:#EAF3DE; }
+.ks-select.yr     { background-color:#E6F1FB; }
+.ks-select.holiday{ background-color:#FCEBEB;color:#E24B4A;font-weight:600; }
+
+/* 출근 체크 (공장장) */
+.attend-check {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:50%;border:2px solid #e0e0e0;
+  background:#fff;cursor:pointer;font-size:16px;
+  transition:all .15s;
+}
+.attend-check.work    { background:#EAF3DE;border-color:#1D9E75;color:#1D9E75; }
+.attend-check.off     { background:#f5f5f5;border-color:#e0e0e0;color:#ccc; }
+.attend-check.holiday { background:#FCEBEB;border-color:#E24B4A;color:#E24B4A; }
+.attend-check.vacation{ background:#FAEEDA;border-color:#EF9F27;color:#EF9F27; }
+
+/* 비고 입력 */
+.hr-note-input {
+  width:100%;padding:5px 8px;border-radius:6px;
+  border:1px solid transparent;background:transparent;
+  font-size:12px;color:#666;font-family:inherit;
+  transition:all .15s;
+}
+.hr-note-input:hover { border-color:#e0e0e0;background:#fff; }
+.hr-note-input:focus { border-color:#1a1a1a;background:#fff;outline:none; }
+
+/* 금액 표시 */
+.amount-cell { font-size:13px;font-weight:600;color:#185FA5; }
+.amount-cell.zero { color:#ccc;font-weight:400; }
+
+/* 상태 뱃지 */
+.hr-badge {
+  font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;
+}
+.hr-badge-work    { background:#EAF3DE;color:#27500A; }
+.hr-badge-holiday { background:#FCEBEB;color:#791F1F; }
+.hr-badge-vac     { background:#FAEEDA;color:#633806; }
+
 </style>
 </head>
 <body>
@@ -1330,6 +1491,15 @@ tr:hover td{background:#fafafa}
       <div class="hub-card-icon">📋</div>
       <div class="hub-card-title">견적서 관리</div>
       <div class="hub-card-desc">현장별 견적서를 작성하고 발행 이력을 체계적으로 관리합니다.</div>
+      <div class="hub-card-arrow">바로가기 →</div>
+    </div>
+
+    <!-- 직원 관리 -->
+    <div class="hub-card hub-card-hr" onclick="goService('hr')">
+      <span class="hub-card-badge badge-live">● LIVE</span>
+      <div class="hub-card-icon">👥</div>
+      <div class="hub-card-title">직원 관리</div>
+      <div class="hub-card-desc">근무 현황, 공수 계산, 급여 정산을 직원별로 관리합니다.</div>
       <div class="hub-card-arrow">바로가기 →</div>
     </div>
   </div>
@@ -2168,6 +2338,42 @@ document.addEventListener('keydown', function(e) {
     <button class="service-back" onclick="backToHub()">← 허브로</button>
     <div class="service-topbar-title">📋 견적서 관리</div>
   </div>
+
+<!-- ★ 직원 관리 서비스 ★ -->
+<div id="service-hr" style="display:none">
+  <div class="service-topbar">
+    <button class="service-back" onclick="backToHub()">← 허브로</button>
+    <div class="service-topbar-title">👥 직원 관리</div>
+  </div>
+  <div class="hr-wrap">
+    <div class="hr-header">
+      <div class="hr-header-left">
+        <div class="hr-emp-btns">
+          <button class="hr-emp-btn on" id="emp-btn-piana" onclick="hrSelectEmp('piana',this)">피안나</button>
+          <button class="hr-emp-btn" id="emp-btn-obk" onclick="hrSelectEmp('obk',this)">오병조 공장장</button>
+        </div>
+        <div class="hr-month-sel">
+          <button class="hr-month-btn" onclick="hrMonthMove(-1)">←</button>
+          <div class="hr-month-label" id="hr-month-label">2026년 4월</div>
+          <button class="hr-month-btn" onclick="hrMonthMove(1)">→</button>
+        </div>
+      </div>
+    </div>
+    <div class="hr-kpi-row" id="hr-kpi-row"></div>
+    <div class="hr-table-wrap">
+      <div class="hr-table-header">
+        <div class="hr-table-title" id="hr-table-title"></div>
+        <button class="hr-excel-btn" onclick="hrDownloadExcel()">📥 급여명세 다운로드</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="hr-tbl">
+          <thead id="hr-thead"></thead>
+          <tbody id="hr-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="coming-soon">
     <div class="cs-icon">📋</div>
     <div class="cs-title">견적서 관리</div>
@@ -2483,7 +2689,7 @@ async function toggleStep(no, key) {
 
 function goService(name) {
   document.getElementById('hub-screen').classList.remove('show');
-  ['pit','calendar','estimate'].forEach(function(n) {
+  ['pit','calendar','estimate','hr'].forEach(function(n) {
     document.getElementById('service-' + n).style.display = 'none';
   });
   if (name === 'pit') {
@@ -2502,6 +2708,10 @@ function goService(name) {
   } else if (name === 'estimate') {
     document.getElementById('service-estimate').style.display = 'block';
     saveSession('estimate');
+  } else if (name === 'hr') {
+    document.getElementById('service-hr').style.display = 'block';
+    saveSession('hr');
+    initHR();
   }
 }
 
@@ -2819,6 +3029,385 @@ function updateDlDropdown() {
   });
   // 이전 선택값 복원
   if (curVal) sel.value = curVal;
+}
+
+
+// ══════════════════════════════════════════════════════
+//  직원 관리 시스템
+// ══════════════════════════════════════════════════════
+
+const HR_CONFIG = {
+  piana: {
+    name: '피안나',
+    type: 'daily',  // 일용직
+    companies: {
+      steelx: { label: '스틸엑스', rate: 120000, color: 'steelx' },
+      yr:     { label: 'YR',      rate: 140000, color: 'yr'     },
+    },
+    options: ['', '0.5', '1', '1.5', '2'],
+  },
+  obk: {
+    name: '오병조 공장장',
+    type: 'monthly', // 월급
+    statuses: ['출근', '결근', '연차', '공휴일'],
+  }
+};
+
+const HR_RATES = { steelx: 120000, yr: 140000 };
+const DAYS_KO  = ['일','월','화','수','목','금','토'];
+
+// 데이터 저장소 (메모리)
+// hrData[empId][YYYY-MM][dd] = { steelx, yr, note } 또는 { status, note }
+let hrData  = {};
+let hrEmp   = 'piana';
+let hrYear  = 2026;
+let hrMonth = 4; // 1-based
+
+function initHR() {
+  hrRender();
+}
+
+function hrSelectEmp(emp, btn) {
+  hrEmp = emp;
+  document.querySelectorAll('.hr-emp-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  hrRender();
+}
+
+function hrMonthMove(dir) {
+  hrMonth += dir;
+  if (hrMonth > 12) { hrMonth = 1; hrYear++; }
+  if (hrMonth < 1)  { hrMonth = 12; hrYear--; }
+  hrRender();
+}
+
+function hrGetData(emp, year, month, day) {
+  const key = emp + '_' + year + '_' + String(month).padStart(2,'0');
+  if (!hrData[key]) hrData[key] = {};
+  if (!hrData[key][day]) {
+    hrData[key][day] = emp === 'piana'
+      ? { steelx:'', yr:'', note:'' }
+      : { status:'', note:'' };
+  }
+  return hrData[key][day];
+}
+
+function hrSetData(emp, year, month, day, field, val) {
+  const d = hrGetData(emp, year, month, day);
+  d[field] = val;
+  hrSaveToStorage();
+  hrUpdateKPI();
+}
+
+// sessionStorage에 저장/복원
+function hrSaveToStorage() {
+  try { sessionStorage.setItem('hrData', JSON.stringify(hrData)); } catch(e){}
+}
+function hrLoadFromStorage() {
+  try {
+    const s = sessionStorage.getItem('hrData');
+    if (s) hrData = JSON.parse(s);
+  } catch(e){}
+}
+
+function hrRender() {
+  hrLoadFromStorage();
+  const year = hrYear, month = hrMonth;
+  document.getElementById('hr-month-label').textContent = year + '년 ' + month + '월';
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date();
+
+  if (hrEmp === 'piana') {
+    hrRenderPiana(year, month, daysInMonth, today);
+  } else {
+    hrRenderOBK(year, month, daysInMonth, today);
+  }
+  hrUpdateKPI();
+}
+
+// ── 피안나 근무표 ──────────────────────────────────────
+function hrRenderPiana(year, month, dim, today) {
+  document.getElementById('hr-table-title').textContent =
+    '피안나 ' + year + '년 ' + month + '월 근무표';
+
+  // 헤더
+  document.getElementById('hr-thead').innerHTML = `
+    <tr>
+      <th style="min-width:60px">일자</th>
+      <th style="min-width:110px;color:#27500A">스틸엑스 (₩120,000)</th>
+      <th style="min-width:110px;color:#185FA5">YR (₩140,000)</th>
+      <th style="min-width:100px">합계</th>
+      <th style="min-width:180px;text-align:left">비고</th>
+    </tr>`;
+
+  let rows = '';
+  for (let d = 1; d <= dim; d++) {
+    const dt      = new Date(year, month-1, d);
+    const dow     = dt.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isToday = d === today.getDate() && month === today.getMonth()+1 && year === today.getFullYear();
+    const dd      = String(d).padStart(2,'0');
+    const rec     = hrGetData('piana', year, month, dd);
+    const sx      = parseFloat(rec.steelx) || 0;
+    const yr      = parseFloat(rec.yr)     || 0;
+    const total   = sx * HR_RATES.steelx + yr * HR_RATES.yr;
+    const totalStr = total > 0 ? '₩' + total.toLocaleString() : '₩0';
+    const amtCls  = total > 0 ? 'amount-cell' : 'amount-cell zero';
+    const rowCls  = isToday ? 'today-row' : isWeekend ? 'weekend' : '';
+    const dateCls = isWeekend ? 'date-col' : '';
+
+    const sxOpts = HR_CONFIG.piana.options.map(v =>
+      `<option value="${v}" ${rec.steelx===v?'selected':''}>${v===''?'—':v+'공수'}</option>`
+    ).join('');
+    const yrOpts = HR_CONFIG.piana.options.map(v =>
+      `<option value="${v}" ${rec.yr===v?'selected':''}>${v===''?'—':v+'공수'}</option>`
+    ).join('');
+
+    rows += `<tr class="${rowCls}">
+      <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
+      <td>
+        <select class="ks-select steelx" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);hrRender()">
+          ${sxOpts}
+        </select>
+      </td>
+      <td>
+        <select class="ks-select yr" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);hrRender()">
+          ${yrOpts}
+        </select>
+      </td>
+      <td class="${amtCls}">${totalStr}</td>
+      <td style="text-align:left">
+        <input class="hr-note-input" type="text" value="${rec.note||''}"
+          onchange="hrSetData('piana',${year},${month},'${dd}','note',this.value)"
+          placeholder="비고">
+      </td>
+    </tr>`;
+  }
+
+  // 합계 행
+  let totalSx=0, totalYr=0, totalAmt=0;
+  for (let d=1;d<=dim;d++){
+    const dd=String(d).padStart(2,'0');
+    const rec=hrGetData('piana',year,month,dd);
+    totalSx  += parseFloat(rec.steelx)||0;
+    totalYr  += parseFloat(rec.yr)||0;
+    totalAmt += (parseFloat(rec.steelx)||0)*HR_RATES.steelx + (parseFloat(rec.yr)||0)*HR_RATES.yr;
+  }
+
+  rows += `<tr class="sum-row">
+    <td>합계</td>
+    <td>${totalSx}공수</td>
+    <td>${totalYr}공수</td>
+    <td>₩${totalAmt.toLocaleString()}</td>
+    <td></td>
+  </tr>`;
+
+  document.getElementById('hr-tbody').innerHTML = rows;
+}
+
+// ── 오병조 공장장 근무표 ──────────────────────────────
+function hrRenderOBK(year, month, dim, today) {
+  document.getElementById('hr-table-title').textContent =
+    '오병조 공장장 ' + year + '년 ' + month + '월 근무현황';
+
+  document.getElementById('hr-thead').innerHTML = `
+    <tr>
+      <th style="min-width:60px">일자</th>
+      <th style="min-width:100px">출근 상태</th>
+      <th style="min-width:200px;text-align:left">비고</th>
+    </tr>`;
+
+  const statusMap = {
+    '출근':   { icon:'✓', cls:'work',    badge:'hr-badge-work',    label:'출근'   },
+    '결근':   { icon:'✗', cls:'holiday', badge:'hr-badge-holiday', label:'결근'   },
+    '연차':   { icon:'📅', cls:'vacation',badge:'hr-badge-vac',    label:'연차'   },
+    '공휴일': { icon:'🎌', cls:'holiday', badge:'hr-badge-holiday', label:'공휴일' },
+    '':       { icon:'—', cls:'off',     badge:'',                 label:''       },
+  };
+
+  let rows='', workDays=0, offDays=0, vacDays=0;
+  for (let d=1;d<=dim;d++){
+    const dt=new Date(year,month-1,d);
+    const dow=dt.getDay();
+    const isWeekend=dow===0||dow===6;
+    const isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
+    const dd=String(d).padStart(2,'0');
+    const rec=hrGetData('obk',year,month,dd);
+    const st=rec.status||'';
+    const sm=statusMap[st]||statusMap[''];
+    const rowCls=isToday?'today-row':isWeekend?'weekend':'';
+    const dateCls=isWeekend?'date-col':'';
+
+    if(st==='출근') workDays++;
+    if(st==='결근') offDays++;
+    if(st==='연차') vacDays++;
+
+    // 상태 선택 버튼
+    const statBtns = ['출근','결근','연차','공휴일',''].map(s => {
+      const m2=statusMap[s]||statusMap[''];
+      const active=s===st?'style="outline:2px solid #1a1a1a;outline-offset:2px"':'';
+      return `<button class="attend-check ${m2.cls}" ${active}
+        onclick="hrSetData('obk',${year},${month},'${dd}','status','${s}');hrRender()"
+        title="${s||'초기화'}">${m2.icon}</button>`;
+    }).join('');
+
+    rows+=`<tr class="${rowCls}">
+      <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
+      <td><div style="display:flex;align-items:center;gap:4px;justify-content:center">${statBtns}
+        ${st?`<span class="hr-badge ${sm.badge}" style="margin-left:6px">${sm.label}</span>`:''}
+      </div></td>
+      <td style="text-align:left">
+        <input class="hr-note-input" type="text" value="${rec.note||''}"
+          onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value)"
+          placeholder="비고 (업무내용, 현장방문 등)">
+      </td>
+    </tr>`;
+  }
+
+  // 합계
+  rows+=`<tr class="sum-row">
+    <td>합계</td>
+    <td>출근 ${workDays}일 / 결근 ${offDays}일 / 연차 ${vacDays}일</td>
+    <td></td>
+  </tr>`;
+
+  document.getElementById('hr-tbody').innerHTML=rows;
+}
+
+// ── KPI 업데이트 ───────────────────────────────────────
+function hrUpdateKPI() {
+  hrLoadFromStorage();
+  const year=hrYear, month=hrMonth;
+  const dim=new Date(year,month,0).getDate();
+  let kpiHTML='';
+
+  if (hrEmp==='piana') {
+    let totalSx=0,totalYr=0,totalAmt=0,workDays=0;
+    for(let d=1;d<=dim;d++){
+      const dd=String(d).padStart(2,'0');
+      const rec=hrGetData('piana',year,month,dd);
+      const sx=parseFloat(rec.steelx)||0;
+      const yr=parseFloat(rec.yr)||0;
+      if(sx>0||yr>0) workDays++;
+      totalSx+=sx; totalYr+=yr;
+      totalAmt+=sx*HR_RATES.steelx+yr*HR_RATES.yr;
+    }
+    kpiHTML=`
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">총 근무일수</div>
+        <div class="hr-kpi-value" style="color:#1a1a1a">${workDays}일</div>
+        <div class="hr-kpi-sub">${month}월 기준</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">스틸엑스 공수</div>
+        <div class="hr-kpi-value" style="color:#27500A">${totalSx}공수</div>
+        <div class="hr-kpi-sub">₩${(totalSx*HR_RATES.steelx).toLocaleString()}</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">YR 공수</div>
+        <div class="hr-kpi-value" style="color:#185FA5">${totalYr}공수</div>
+        <div class="hr-kpi-sub">₩${(totalYr*HR_RATES.yr).toLocaleString()}</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">월 총 급여</div>
+        <div class="hr-kpi-value" style="color:#E24B4A">₩${totalAmt.toLocaleString()}</div>
+        <div class="hr-kpi-sub">세전 기준</div>
+      </div>`;
+  } else {
+    let workDays=0,offDays=0,vacDays=0,totalDays=0;
+    for(let d=1;d<=dim;d++){
+      const dt=new Date(year,month-1,d);
+      if(dt.getDay()!==0&&dt.getDay()!==6) totalDays++;
+      const dd=String(d).padStart(2,'0');
+      const rec=hrGetData('obk',year,month,dd);
+      if(rec.status==='출근') workDays++;
+      if(rec.status==='결근') offDays++;
+      if(rec.status==='연차') vacDays++;
+    }
+    kpiHTML=`
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">출근일수</div>
+        <div class="hr-kpi-value" style="color:#1D9E75">${workDays}일</div>
+        <div class="hr-kpi-sub">평일 기준 ${totalDays}일</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">결근일수</div>
+        <div class="hr-kpi-value" style="color:#E24B4A">${offDays}일</div>
+        <div class="hr-kpi-sub">${month}월 기준</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">연차 사용</div>
+        <div class="hr-kpi-value" style="color:#EF9F27">${vacDays}일</div>
+        <div class="hr-kpi-sub">누적 확인 필요</div>
+      </div>
+      <div class="hr-kpi">
+        <div class="hr-kpi-label">출근율</div>
+        <div class="hr-kpi-value" style="color:#534AB7">${totalDays>0?Math.round(workDays/totalDays*100):0}%</div>
+        <div class="hr-kpi-sub">평일 대비</div>
+      </div>`;
+  }
+  document.getElementById('hr-kpi-row').innerHTML=kpiHTML;
+}
+
+// ── 엑셀 다운로드 ──────────────────────────────────────
+function hrDownloadExcel() {
+  hrLoadFromStorage();
+  const year=hrYear, month=hrMonth;
+  const dim=new Date(year,month,0).getDate();
+  const wb=XLSX.utils.book_new();
+
+  if(hrEmp==='piana'){
+    const headers=['일자','스틸엑스(공수)','YR(공수)','스틸엑스 금액','YR 금액','합계','비고'];
+    let rows=[headers];
+    let tSx=0,tYr=0,tAmt=0;
+    for(let d=1;d<=dim;d++){
+      const dt=new Date(year,month-1,d);
+      const dow=DAYS_KO[dt.getDay()];
+      const dd=String(d).padStart(2,'0');
+      const rec=hrGetData('piana',year,month,dd);
+      const sx=parseFloat(rec.steelx)||0;
+      const yr=parseFloat(rec.yr)||0;
+      const amt=sx*HR_RATES.steelx+yr*HR_RATES.yr;
+      tSx+=sx;tYr+=yr;tAmt+=amt;
+      rows.push([
+        month+'월 '+d+'일 ('+dow+')',
+        sx||'',yr||'',
+        sx>0?sx*HR_RATES.steelx:'',
+        yr>0?yr*HR_RATES.yr:'',
+        amt>0?amt:'',
+        rec.note||''
+      ]);
+    }
+    rows.push(['합계',tSx,tYr,tSx*HR_RATES.steelx,tYr*HR_RATES.yr,tAmt,'']);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:16},{wch:13},{wch:13},{wch:14},{wch:14},{wch:14},{wch:25}];
+    XLSX.utils.book_append_sheet(wb,ws,'피안나_'+month+'월');
+  } else {
+    const headers=['일자','출근상태','비고'];
+    let rows=[headers];
+    let wk=0,off=0,vac=0;
+    for(let d=1;d<=dim;d++){
+      const dt=new Date(year,month-1,d);
+      const dow=DAYS_KO[dt.getDay()];
+      const dd=String(d).padStart(2,'0');
+      const rec=hrGetData('obk',year,month,dd);
+      if(rec.status==='출근')wk++;
+      if(rec.status==='결근')off++;
+      if(rec.status==='연차')vac++;
+      rows.push([month+'월 '+d+'일 ('+dow+')',rec.status||'',rec.note||'']);
+    }
+    rows.push(['합계','출근 '+wk+'일 / 결근 '+off+'일 / 연차 '+vac+'일','']);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:16},{wch:20},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws,'오병조공장장_'+month+'월');
+  }
+
+  const today=new Date();
+  const ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  const empName=hrEmp==='piana'?'피안나':'오병조공장장';
+  XLSX.writeFile(wb,'STEELX_직원관리_'+empName+'_'+year+'년'+month+'월_'+ds+'.xlsx');
+  showToast('📥 급여명세 다운로드 완료!');
 }
 
 </script>
