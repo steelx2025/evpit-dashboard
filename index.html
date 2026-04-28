@@ -1549,6 +1549,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let D = [];         // pit_items
+let matState = {};  // 자재입고 상태
 let stepState = {}; // pit_steps
 let settle = {};    // settle_status
 let popupTarget = null;
@@ -1562,6 +1563,11 @@ async function loadAll() {
       sb.from('settle_status').select('*'),
     ]);
     D = itemsRes.data || [];
+    // matState 초기화
+    matState = {};
+    D.forEach(function(d) {
+      matState[d.no] = { b: d.mat_b || '', s: d.mat_s || '' };
+    });
     (stepsRes.data || []).forEach(r => {
       stepState[r.item_no] = { pre: r.pre, bp: r.bp, sp: r.sp, weld: r.weld };
     });
