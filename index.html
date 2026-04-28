@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STEELX — EV PIT 출하 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1087,6 +1088,19 @@ tr:hover td{background:#fafafa}
 }
 .date-popup-save:hover { background:#333; }
 
+
+/* ── 엑셀 다운로드 버튼 ─────────────────── */
+.excel-btn {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 13px;border-radius:20px;
+  background:#1D7A45;color:#fff;
+  border:none;font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.excel-btn:hover { background:#155e34;transform:translateY(-1px); }
+.excel-btn:active { transform:scale(.97); }
+.excel-btn:disabled { background:#ccc;cursor:not-allowed;transform:none; }
+
 </style>
 </head>
 <body>
@@ -1427,6 +1441,7 @@ tr:hover td{background:#fafafa}
           </select>
           <span class="dl-arrow">▼</span>
         </div>
+        <button class="excel-btn" id="excel-btn" onclick="downloadExcel()">📥 엑셀 다운로드</button>
         <button class="add-btn" onclick="openPanel()">＋ 항목 추가</button>
       </div>
       </div>
@@ -2531,6 +2546,185 @@ async function clearDate() {
 
   await sb.from('pit_items').update(update).eq('no', no);
   showToast('📅 날짜 삭제됐어요');
+}
+
+
+// ── 엑셀 다운로드 ─────────────────────────────────────────
+function downloadExcel() {
+  var btn = document.getElementById('excel-btn');
+
+  // 현재 필터 적용된 데이터 가져오기
+  var rows = D;
+  if (cf === 'done')       rows = D.filter(isDone);
+  else if (cf === 'wait')  rows = D.filter(isWait);
+  else if (cf === 'mat')   rows = D.filter(function(d){ return (d.mat_b && d.mat_b !== '완료') || (d.mat_s && d.mat_s !== '완료'); });
+  else if (cf === 'mfg')   rows = D.filter(isMfg);
+  else if (cf.startsWith('dl:')) rows = D.filter(function(d){ return d.dl === cf.slice(3); });
+
+  if (rows.length === 0) {
+    alert('다운로드할 데이터가 없습니다.');
+    return;
+  }
+
+  // 파일명에 필터 정보 포함
+  var filterName = '전체';
+  if (cf === 'done')       filterName = '출하완료';
+  else if (cf === 'wait')  filterName = '출하대기';
+  else if (cf === 'mat')   filterName = '자재예정';
+  else if (cf === 'mfg')   filterName = '제작중';
+  else if (cf.startsWith('dl:')) filterName = cf.slice(3) + ' 마감';
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 생성 중...';
+
+  try {
+    // 날짜 포맷 함수
+    function excelDate(ds) {
+      if (!ds) return '';
+      var p = (ds + '').slice(0, 10).split('-');
+      return p[0] + '.' + p[1] + '.' + p[2];
+    }
+
+    // 출하 상태 텍스트
+    function shipText(d) {
+      if (isDone(d))  return '출하완료';
+      if (isWait(d))  return '출하대기';
+      if (isMfg(d))   return '제작중';
+      return '대기';
+    }
+
+    // 헤더 행
+    var headers = [
+      'No', '현장명', '동', '구분', 'PIT NO.', '규격',
+      '상차일', '현장도착일', '마감', '단가(원)', '출하상태', '비고'
+    ];
+
+    // 데이터 행
+    var dataRows = rows.map(function(d) {
+      return [
+        d.no,
+        d.site || '',
+        d.dong || '',
+        d.gu   || '',
+        d.pit  || '',
+        d.spec || '',
+        excelDate(d.sd),
+        excelDate(d.ad),
+        d.dl   || '',
+        d.price || 0,
+        shipText(d),
+        d.note || ''
+      ];
+    });
+
+    // 합계 행
+    var total = rows.reduce(function(s, d){ return s + (d.price || 0); }, 0);
+    var sumRow = ['', '', '', '', '', '', '', '', '합계', total, '', ''];
+
+    // 워크북 생성
+    var wb = XLSX.utils.book_new();
+    var wsData = [headers].concat(dataRows).concat([sumRow]);
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // 열 너비 설정
+    ws['!cols'] = [
+      {wch:6},   // No
+      {wch:22},  // 현장명
+      {wch:8},   // 동
+      {wch:6},   // 구분
+      {wch:8},   // PIT
+      {wch:20},  // 규격
+      {wch:12},  // 상차일
+      {wch:12},  // 도착일
+      {wch:8},   // 마감
+      {wch:13},  // 단가
+      {wch:10},  // 출하상태
+      {wch:30},  // 비고
+    ];
+
+    // 헤더 스타일 (배경색 + 굵게)
+    var headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1A1A1A' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top:    { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left:   { style: 'thin', color: { rgb: '000000' } },
+        right:  { style: 'thin', color: { rgb: '000000' } }
+      }
+    };
+
+    // 합계 행 스타일
+    var sumStyle = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: 'EAF3DE' } },
+      alignment: { horizontal: 'center' },
+      border: {
+        top:    { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left:   { style: 'thin', color: { rgb: '000000' } },
+        right:  { style: 'thin', color: { rgb: '000000' } }
+      }
+    };
+
+    // 헤더 행 스타일 적용
+    headers.forEach(function(h, i) {
+      var cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })];
+      if (cell) cell.s = headerStyle;
+    });
+
+    // 데이터 행 테두리 적용
+    dataRows.forEach(function(row, ri) {
+      row.forEach(function(val, ci) {
+        var cell = ws[XLSX.utils.encode_cell({ r: ri + 1, c: ci })];
+        if (cell) {
+          cell.s = {
+            border: {
+              top:    { style: 'thin', color: { rgb: 'E0E0E0' } },
+              bottom: { style: 'thin', color: { rgb: 'E0E0E0' } },
+              left:   { style: 'thin', color: { rgb: 'E0E0E0' } },
+              right:  { style: 'thin', color: { rgb: 'E0E0E0' } }
+            },
+            alignment: ci === 1 || ci === 11 ? { horizontal: 'left' } : { horizontal: 'center' }
+          };
+          // 단가 숫자 포맷
+          if (ci === 9) {
+            cell.s.numFmt = '#,##0';
+            cell.t = 'n';
+          }
+        }
+      });
+    });
+
+    // 합계 행 스타일 적용
+    sumRow.forEach(function(val, ci) {
+      var cell = ws[XLSX.utils.encode_cell({ r: dataRows.length + 1, c: ci })];
+      if (cell) {
+        cell.s = sumStyle;
+        if (ci === 9) { cell.s.numFmt = '#,##0'; cell.t = 'n'; }
+      }
+    });
+
+    // 행 높이
+    ws['!rows'] = [{ hpt: 22 }]; // 헤더 높이
+
+    XLSX.utils.book_append_sheet(wb, ws, filterName);
+
+    // 파일명: STEELX_EV PIT_4월마감_20260428.xlsx
+    var today = new Date();
+    var dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
+    var fileName = 'STEELX_EVPIT_' + filterName + '_' + dateStr + '.xlsx';
+
+    XLSX.writeFile(wb, fileName);
+    showToast('📥 엑셀 파일 다운로드 완료!');
+  } catch(e) {
+    console.error(e);
+    alert('엑셀 생성 오류: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📥 엑셀 다운로드';
+  }
 }
 
 </script>
