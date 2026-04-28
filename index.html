@@ -1462,8 +1462,10 @@ async function loadAll() {
     (settleRes.data || []).forEach(r => {
       settle[r.month] = { on: r.settled, note: r.note || '' };
     });
-    document.getElementById('list-loading').style.display = 'none';
-    document.getElementById('list-table').style.display = 'block';
+    const ll = document.getElementById('list-loading');
+    const lt = document.getElementById('list-table');
+    if(ll) ll.style.display = 'none';
+    if(lt) lt.style.display = 'block';
     updateSyncTime();
     initKPI(); renderTable(); renderCal(); renderDL(); renderSites();
     renderDoneCards(); renderWaitCards(); renderMfgCards(); renderRev();
@@ -1526,13 +1528,7 @@ function getStatus(d) {
 function fmtDate(ds) { if(!ds) return '—'; const p = (ds+'').slice(0,10).split('-'); return `${parseInt(p[1])}/${parseInt(p[2])}`; }
 
 // ── 공정 단계 토글 (DB 저장) ───────────────────────────────
-async function toggleStep(no, key) {
-  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
-  stepState[no][key] = !stepState[no][key];
-  initKPI(); renderTable();
-  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
-  showToast('저장됐어요 ✓');
-}
+
 
 // ── 자재 팝업 ──────────────────────────────────────────────
 function openMatPopup(no, field, event) {
@@ -2161,18 +2157,7 @@ function showHub() {
   document.getElementById('service-estimate').style.display = 'none';
 }
 
-function goService(name) {
-  document.getElementById('hub-screen').classList.remove('show');
-  if (name === 'pit') {
-    document.getElementById('service-pit').style.display = 'block';
-    // 첫 진입 시 데이터 로드
-    if (D.length === 0) loadAll();
-  } else if (name === 'calendar') {
-    document.getElementById('service-calendar').style.display = 'block';
-  } else if (name === 'estimate') {
-    document.getElementById('service-estimate').style.display = 'block';
-  }
-}
+
 
 function backToHub() {
   document.getElementById('service-pit').style.display      = 'none';
@@ -2231,26 +2216,9 @@ function printLabel() {
   document.getElementById('print-area').style.display = 'none';
 }
 
-// ── 수정2: EV PIT 진입 시 즉시 데이터 로드 ──
-const _origGoService = goService;
-// goService는 이미 D.length===0 체크하므로 loadAll 강제 호출
-function goService(name) {
-  document.getElementById('hub-screen').classList.remove('show');
-  if (name === 'pit') {
-    document.getElementById('service-pit').style.display = 'block';
-    loadAll(); // 항상 최신 데이터 로드
-  } else if (name === 'calendar') {
-    document.getElementById('service-calendar').style.display = 'block';
-  } else if (name === 'estimate') {
-    document.getElementById('service-estimate').style.display = 'block';
-  }
-}
 
-// ── 수정3: 공정단계 4개 완료 시 출하대기 자동 전환 ──────
-// toggleStep 오버라이드
-const _origToggleStep = toggleStep;
-async function toggleStep(no, key) {
-  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
+
+;
   stepState[no][key] = !stepState[no][key];
 
   // 4단계 모두 완료 && 현재 출하상태가 비어있으면 → 출하대기 자동 설정
@@ -2280,6 +2248,55 @@ async function toggleShipDone(no) {
     showToast('↩️ 출하대기로 변경됐어요');
   }
   initKPI(); renderTable(); renderDoneCards(); renderWaitCards();
+}
+
+
+async function toggleStep(no, key) {
+  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
+  stepState[no][key] = !stepState[no][key];
+
+  const s = stepState[no];
+  const d = D.find(x => x.no === no);
+  const allDone = s.pre && s.bp && s.sp && s.weld;
+
+  if (d) {
+    if (allDone && !d.p_ship) {
+      // 4개 모두 완료 + 아직 출하상태 없음 → 출하대기 자동
+      d.p_ship = '출하대기';
+      await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
+      showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
+    } else if (!allDone && d.p_ship === '출하대기') {
+      // 1개라도 해제 + 출하대기 상태 → 제작중으로 복귀
+      d.p_ship = '';
+      await sb.from('pit_items').update({ p_ship: '' }).eq('no', no);
+      showToast('↩️ 공정 미완료 — 제작중으로 변경됐어요');
+    }
+  }
+
+  initKPI(); renderTable(); renderDoneCards(); renderWaitCards(); renderMfgCards();
+  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
+}
+
+function goService(name) {
+  document.getElementById('hub-screen').classList.remove('show');
+  // 모든 서비스 화면 숨기기
+  ['pit','calendar','estimate'].forEach(n => {
+    document.getElementById('service-' + n).style.display = 'none';
+  });
+
+  if (name === 'pit') {
+    document.getElementById('service-pit').style.display = 'block';
+    // 로딩 표시 즉시 숨기고 테이블 보이게
+    const loading = document.getElementById('list-loading');
+    const table   = document.getElementById('list-table');
+    if (loading) loading.style.display = 'flex';
+    if (table)   table.style.display   = 'none';
+    loadAll();
+  } else if (name === 'calendar') {
+    document.getElementById('service-calendar').style.display = 'block';
+  } else if (name === 'estimate') {
+    document.getElementById('service-estimate').style.display = 'block';
+  }
 }
 
 </script>
