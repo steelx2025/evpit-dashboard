@@ -1074,7 +1074,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="label-btn-row">
       <button class="label-cancel-btn" onclick="closeLabelModal()">닫기</button>
-      <button class="label-print-btn" onclick="printLabel()">🖨️ 인쇄하기</button>
+      <button class="label-print-btn" onclick="printLabel()">🖨️ 인쇄하기 (인쇄창 → 대상: 프린터 선택)</button>
     </div>
   </div>
 </div>
@@ -1365,8 +1365,8 @@ tr:hover td{background:#fafafa}
         <button class="add-btn" onclick="openPanel()">＋ 항목 추가</button>
       </div>
       </div>
-      <div id="list-loading" class="loading"><div class="spinner"></div>데이터 불러오는 중...</div>
-      <div class="tscroll" id="list-table" style="display:none">
+      <div id="list-loading" class="loading" style="display:none;visibility:hidden"><div class="spinner"></div>데이터 불러오는 중...</div>
+      <div class="tscroll" id="list-table" style="display:block">
         <table>
           <thead>
             <tr>
@@ -1490,7 +1490,11 @@ let popupTarget = null;
 
 // ── 초기 데이터 로드 ───────────────────────────────────────
 async function loadAll() {
+  var ll = document.getElementById('list-loading');
+  var lt = document.getElementById('list-table');
   try {
+    if (ll) ll.style.display = 'flex';
+    if (lt) lt.style.display = 'none';
     const [itemsRes, stepsRes, settleRes] = await Promise.all([
       sb.from('pit_items').select('*').order('no'),
       sb.from('pit_steps').select('*'),
@@ -1503,19 +1507,22 @@ async function loadAll() {
     (settleRes.data || []).forEach(r => {
       settle[r.month] = { on: r.settled, note: r.note || '' };
     });
-    var ll = document.getElementById('list-loading');
-    var lt = document.getElementById('list-table');
+    // ★ 성공 시 무조건 테이블 표시
     if (ll) { ll.style.display = 'none'; ll.style.visibility = 'hidden'; }
     if (lt) { lt.style.display = 'block'; lt.style.visibility = 'visible'; }
     updateSyncTime();
     initKPI(); renderTable(); renderCal(); renderDL(); renderSites();
     renderDoneCards(); renderWaitCards(); renderMfgCards(); renderRev();
     if (!window._realtimeSubscribed) {
-    subscribeRealtime();
-    window._realtimeSubscribed = true;
-  }
+      subscribeRealtime();
+      window._realtimeSubscribed = true;
+    }
   } catch(e) {
-    document.getElementById('list-loading').innerHTML = '⚠️ 데이터 로드 실패. 새로고침해주세요.';
+    console.error('loadAll 오류:', e);
+    // ★ 실패 시에도 테이블 표시 (에러 메시지)
+    if (ll) { ll.style.display = 'none'; ll.style.visibility = 'hidden'; }
+    if (lt) { lt.style.display = 'block'; lt.style.visibility = 'visible'; }
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="17" style="text-align:center;padding:2rem;color:#E24B4A">⚠️ 데이터 로드 실패 — 새로고침해주세요</td></tr>';
   }
 }
 
@@ -2258,25 +2265,18 @@ function closeLabelModal() {
 }
 function printLabel() {
   var pa = document.getElementById('print-area');
-  // 데이터 복사
   ['site','dong','pit','spec','ad'].forEach(function(k) {
     var el = document.getElementById('pa-' + k);
     var src = document.getElementById('lv-' + k);
     if (el && src) el.textContent = src.textContent;
   });
-  // 인쇄용으로 위치 복원 후 인쇄
-  pa.style.position = 'fixed';
-  pa.style.left = '0';
-  pa.style.top = '0';
-  pa.style.visibility = 'visible';
-  pa.style.display = 'block';
-  window.print();
-  // 인쇄 후 다시 숨기기
-  pa.style.display = 'none';
-  pa.style.position = 'absolute';
-  pa.style.left = '-9999px';
-  pa.style.top = '-9999px';
-  pa.style.visibility = 'hidden';
+  // 인쇄 영역 화면에 표시
+  pa.style.cssText = 'display:block;position:fixed;inset:0;background:#fff;z-index:99999;';
+  setTimeout(function() {
+    window.print();
+    // 인쇄 후 숨기기
+    pa.style.cssText = 'display:none;position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
+  }, 100);
 }
 
 // ── 출하완료 토글 ─────────────────────────────
@@ -2330,19 +2330,12 @@ function goService(name) {
   if (name === 'pit') {
     document.getElementById('service-pit').style.display = 'block';
     saveSession('pit');
-    // 필터 전체로 초기화
     cf = 'all';
     var allBtn = document.querySelector('#list-filt .fb[data-f="all"]');
     if (allBtn) {
       document.querySelectorAll('#list-filt .fb').forEach(function(b){ b.classList.remove('on'); });
       allBtn.classList.add('on');
     }
-    // 로딩바 표시
-    var ll = document.getElementById('list-loading');
-    var lt = document.getElementById('list-table');
-    if (ll) ll.style.display = 'flex';
-    if (lt) lt.style.display = 'none';
-    // 데이터 로드
     loadAll();
   } else if (name === 'calendar') {
     document.getElementById('service-calendar').style.display = 'block';
