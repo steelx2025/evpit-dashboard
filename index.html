@@ -1404,7 +1404,7 @@ tr:hover td{background:#fafafa}
       </div>
       <div class="kpi-card" id="kpi-4" onclick="goKpi('revenue')">
         <div class="kpi-label">총 매출</div>
-        <div class="kpi-value" style="font-size:18px">3,120만</div>
+        <div class="kpi-value" style="font-size:18px" id="kv-rev">-</div>
         <div class="kpi-sub" id="ks-rev">매출·정산 보기 →</div>
       </div>
     </div>
@@ -1542,7 +1542,7 @@ tr:hover td{background:#fafafa}
     <!-- 매출·정산 -->
     <div id="pane-revenue" class="pane">
       <div class="rev-kpi">
-        <div class="rk"><div class="rk-l">총 매출</div><div class="rk-v">3,120만원</div><div class="rk-s">27건</div></div>
+        <div class="rk"><div class="rk-l">총 매출</div><div class="rk-v" id="rv-total">-</div><div class="rk-s" id="rv-total-s">-</div></div>
         <div class="rk"><div class="rk-l">정산 완료</div><div class="rk-v" style="color:#1D9E75" id="rv-done">0만원</div><div class="rk-s" id="rv-done-s">0개월</div></div>
         <div class="rk"><div class="rk-l">미정산</div><div class="rk-v" style="color:#E24B4A" id="rv-left">3,120만원</div><div class="rk-s" id="rv-left-s">5개월 대기</div></div>
       </div>
@@ -1589,8 +1589,13 @@ async function loadAll() {
     (settleRes.data || []).forEach(r => {
       settle[r.month] = { on: r.settled, note: r.note || '' };
     });
+    // DB에 없는 마감 월도 settle에 초기화
+    D.forEach(function(d) {
+      if (d.dl && !settle[d.dl]) settle[d.dl] = { on: false, note: '' };
+    });
     updateSyncTime();
     initKPI();
+    updateDlDropdown();
     renderTable();
     renderCal();
     renderDL();
@@ -1916,13 +1921,42 @@ function renderSites() {
 
 // ── 매출·정산 ──────────────────────────────────────────────
 const MLIST=['1월','2월','3월','4월','5월'];
-function getMD(){return MLIST.map(m=>{const items=D.filter(d=>d.dl===m);return{m,items,total:items.reduce((s,d)=>s+d.price,0),done:items.filter(isDone).length,cnt:items.length};});}
+function getMD(){
+  // DB 데이터에서 마감 월 목록 동적 생성 (정렬)
+  var months = [];
+  D.forEach(function(d){ if(d.dl && months.indexOf(d.dl) === -1) months.push(d.dl); });
+  // 월 정렬 (1월~12월 순서)
+  months.sort(function(a,b){
+    var na = parseInt(a); var nb = parseInt(b);
+    return na - nb;
+  });
+  return months.map(function(m){
+    var items = D.filter(function(d){ return d.dl === m; });
+    return { m:m, items:items, total:items.reduce(function(s,d){ return s+(d.price||0); },0), done:items.filter(isDone).length, cnt:items.length };
+  });
+}
 function renderRev() {
-  const md=getMD(), maxA=Math.max(...md.map(d=>d.total));
-  const sdT=md.filter(d=>settle[d.m]?.on).reduce((s,d)=>s+d.total,0), sdC=md.filter(d=>settle[d.m]?.on).length;
+  const md=getMD();
+  const maxA = md.length > 0 ? Math.max(...md.map(d=>d.total)) : 0;
+  const sdT = md.filter(d=>settle[d.m]?.on).reduce((s,d)=>s+d.total,0);
+  const sdC = md.filter(d=>settle[d.m]?.on).length;
+  const totalAll = D.reduce(function(s,d){ return s+(d.price||0); }, 0);
+  const totalCnt = D.length;
+  const totalMon = md.length;
+
+  // KPI 카드 총매출 업데이트
+  var kvRev = document.getElementById('kv-rev');
+  if (kvRev) kvRev.textContent = (totalAll/10000).toLocaleString() + '만';
+
+  // 매출정산 총매출 카드
+  var rvTotal = document.getElementById('rv-total');
+  var rvTotalS = document.getElementById('rv-total-s');
+  if (rvTotal)  rvTotal.textContent  = (totalAll/10000).toLocaleString() + '만원';
+  if (rvTotalS) rvTotalS.textContent = totalCnt + '건 · ' + totalMon + '개월';
+
   document.getElementById('rv-done').textContent=(sdT/10000).toLocaleString()+'만원';
   document.getElementById('rv-done-s').textContent=sdC+'개월 완료';
-  document.getElementById('rv-left').textContent=((31200000-sdT)/10000).toLocaleString()+'만원';
+  document.getElementById('rv-left').textContent=((totalAll-sdT)/10000).toLocaleString()+'만원';
   document.getElementById('rv-left-s').textContent=(5-sdC)+'개월 대기';
   document.getElementById('ks-rev').textContent=sdC>0?`정산완료 ${sdC}개월`:'매출·정산 보기 →';
   document.getElementById('barchart').innerHTML=md.map(d=>{
@@ -2725,6 +2759,27 @@ function downloadExcel() {
     btn.disabled = false;
     btn.textContent = '📥 엑셀 다운로드';
   }
+}
+
+
+// ── 마감 월 드롭다운 동적 업데이트 ──────────────
+function updateDlDropdown() {
+  var sel = document.getElementById('dl-select');
+  if (!sel) return;
+  var curVal = sel.value;
+  // 기존 옵션 제거 (첫번째 "마감 월 선택" 제외)
+  while (sel.options.length > 1) sel.remove(1);
+  // DB 데이터에서 월 목록 추출
+  var months = [];
+  D.forEach(function(d){ if(d.dl && months.indexOf(d.dl) === -1) months.push(d.dl); });
+  months.sort(function(a,b){ return parseInt(a)-parseInt(b); });
+  months.forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    sel.appendChild(opt);
+  });
+  // 이전 선택값 복원
+  if (curVal) sel.value = curVal;
 }
 
 </script>
