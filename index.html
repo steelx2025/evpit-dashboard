@@ -1525,10 +1525,11 @@ async function loadAll() {
 
 function updateSyncTime() {
   const now = new Date();
-  var el2 = document.getElementById('sync-time-top');
-  if(el2) el2.textContent = timeStr;
-  document.getElementById('sync-time').textContent =
-    `마지막 동기화: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const timeStr = `마지막 동기화: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const el1 = document.getElementById('sync-time');
+  const el2 = document.getElementById('sync-time-top');
+  if (el1) el1.textContent = timeStr;
+  if (el2) el2.textContent = timeStr;
 }
 
 // ── 실시간 구독 ────────────────────────────────────────────
