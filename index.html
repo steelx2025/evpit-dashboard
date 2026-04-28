@@ -3046,7 +3046,7 @@ const HR_CONFIG = {
       steelx: { label: '스틸엑스', rate: 120000, color: 'steelx' },
       yr:     { label: 'YR',      rate: 140000, color: 'yr'     },
     },
-    options: ['', '0.5', '1', '1.5', '2'],
+    options: ['', '0.5', '1', '1.5', '2', '휴무'],
   },
   obk: {
     name: '오병조 공장장',
@@ -3160,21 +3160,21 @@ function hrRenderPiana(year, month, dim, today) {
     const dateCls = isWeekend ? 'date-col' : '';
 
     const sxOpts = HR_CONFIG.piana.options.map(v =>
-      `<option value="${v}" ${rec.steelx===v?'selected':''}>${v===''?'—':v+'공수'}</option>`
+      `<option value="${v}" ${rec.steelx===v?'selected':''} ${v==='휴무'?'style="color:#E24B4A;font-weight:600"':''}>${v===''?'—':v==='휴무'?'🔴 휴무':v+'공수'}</option>`
     ).join('');
     const yrOpts = HR_CONFIG.piana.options.map(v =>
-      `<option value="${v}" ${rec.yr===v?'selected':''}>${v===''?'—':v+'공수'}</option>`
+      `<option value="${v}" ${rec.yr===v?'selected':''} ${v==='휴무'?'style="color:#E24B4A;font-weight:600"':''}>${v===''?'—':v==='휴무'?'🔴 휴무':v+'공수'}</option>`
     ).join('');
 
     rows += `<tr class="${rowCls}">
       <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
       <td>
-        <select class="ks-select steelx" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);hrRender()">
+        <select class="ks-select steelx${rec.steelx==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrRender()">
           ${sxOpts}
         </select>
       </td>
       <td>
-        <select class="ks-select yr" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);hrRender()">
+        <select class="ks-select yr${rec.yr==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrRender()">
           ${yrOpts}
         </select>
       </td>
@@ -3182,7 +3182,7 @@ function hrRenderPiana(year, month, dim, today) {
       <td style="text-align:left">
         <input class="hr-note-input" type="text" value="${rec.note||''}"
           onchange="hrSetData('piana',${year},${month},'${dd}','note',this.value)"
-          placeholder="비고">
+          placeholder="">
       </td>
     </tr>`;
   }
@@ -3262,7 +3262,7 @@ function hrRenderOBK(year, month, dim, today) {
       <td style="text-align:left">
         <input class="hr-note-input" type="text" value="${rec.note||''}"
           onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value)"
-          placeholder="비고 (업무내용, 현장방문 등)">
+          placeholder="">
       </td>
     </tr>`;
   }
