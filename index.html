@@ -1914,6 +1914,37 @@ function subscribeRealtime() {
       if (payload.new) settle[payload.new.month] = { on: payload.new.settled, note: payload.new.note || '' };
       updateSyncTime(); renderRev(); showToast('💰 정산 정보가 업데이트됐어요');
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hr_piana' }, async payload => {
+      if (payload.new) {
+        const d = payload.new;
+        const dt = new Date(d.work_date);
+        const y = dt.getFullYear(), m = dt.getMonth()+1;
+        const dd = String(dt.getDate()).padStart(2,'0');
+        const key = 'piana_' + y + '_' + String(m).padStart(2,'0');
+        if (!hrData[key]) hrData[key] = {};
+        hrData[key][dd] = { steelx: d.steelx||'', yr: d.yr||'', note: d.note||'' };
+        // 현재 직원관리 화면이 열려있으면 리렌더
+        const hrSvc = document.getElementById('service-hr');
+        if (hrSvc && hrSvc.style.display !== 'none' && hrEmp === 'piana') {
+          hrRender(); showToast('👤 피안나 근무표가 업데이트됐어요');
+        }
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'hr_obk' }, async payload => {
+      if (payload.new) {
+        const d = payload.new;
+        const dt = new Date(d.work_date);
+        const y = dt.getFullYear(), m = dt.getMonth()+1;
+        const dd = String(dt.getDate()).padStart(2,'0');
+        const key = 'obk_' + y + '_' + String(m).padStart(2,'0');
+        if (!hrData[key]) hrData[key] = {};
+        hrData[key][dd] = { status: d.status||'', note: d.note||'' };
+        const hrSvc = document.getElementById('service-hr');
+        if (hrSvc && hrSvc.style.display !== 'none' && hrEmp === 'obk') {
+          hrRender(); showToast('👤 공장장 근무표가 업데이트됐어요');
+        }
+      }
+    })
     .subscribe();
 }
 
@@ -3219,21 +3250,54 @@ let hrEmp   = 'piana';
 let hrYear  = 2026;
 let hrMonth = 4; // 1-based
 
-function initHR() {
+async function initHR() {
+  await hrLoadFromSupabase();
   hrRender();
 }
 
-function hrSelectEmp(emp, btn) {
+async function hrLoadFromSupabase() {
+  try {
+    const year  = hrYear;
+    const month = hrMonth;
+    const from  = year + '-' + String(month).padStart(2,'0') + '-01';
+    const to    = year + '-' + String(month).padStart(2,'0') + '-31';
+
+    const [pianaRes, obkRes] = await Promise.all([
+      sb.from('hr_piana').select('*').gte('work_date', from).lte('work_date', to),
+      sb.from('hr_obk').select('*').gte('work_date', from).lte('work_date', to),
+    ]);
+
+    // hrData 캐시에 저장
+    (pianaRes.data || []).forEach(r => {
+      const dd = r.work_date.slice(8, 10);
+      const key = 'piana_' + year + '_' + String(month).padStart(2,'0');
+      if (!hrData[key]) hrData[key] = {};
+      hrData[key][dd] = { steelx: r.steelx||'', yr: r.yr||'', note: r.note||'' };
+    });
+    (obkRes.data || []).forEach(r => {
+      const dd = r.work_date.slice(8, 10);
+      const key = 'obk_' + year + '_' + String(month).padStart(2,'0');
+      if (!hrData[key]) hrData[key] = {};
+      hrData[key][dd] = { status: r.status||'', note: r.note||'' };
+    });
+  } catch(e) {
+    console.error('HR 로드 오류:', e);
+  }
+}
+
+async function hrSelectEmp(emp, btn) {
   hrEmp = emp;
   document.querySelectorAll('.hr-emp-btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
+  await hrLoadFromSupabase();
   hrRender();
 }
 
-function hrMonthMove(dir) {
+async function hrMonthMove(dir) {
   hrMonth += dir;
   if (hrMonth > 12) { hrMonth = 1; hrYear++; }
   if (hrMonth < 1)  { hrMonth = 12; hrYear--; }
+  await hrLoadFromSupabase();
   hrRender();
 }
 
@@ -3248,22 +3312,28 @@ function hrGetData(emp, year, month, day) {
   return hrData[key][day];
 }
 
-function hrSetData(emp, year, month, day, field, val) {
+async function hrSetData(emp, year, month, day, field, val) {
   const d = hrGetData(emp, year, month, day);
   d[field] = val;
-  hrSaveToStorage();
   hrUpdateKPI();
+  // Supabase에 저장
+  const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + day;
+  const table = emp === 'piana' ? 'hr_piana' : 'hr_obk';
+  const rec = hrGetData(emp, year, month, day);
+  try {
+    await sb.from(table).upsert(
+      Object.assign({ work_date: dateStr }, rec),
+      { onConflict: 'work_date' }
+    );
+  } catch(e) { console.error('HR 저장 오류:', e); }
 }
 
-// sessionStorage에 저장/복원
+// ── HR 데이터 로컬 캐시 (렌더링용) ─────────────
 function hrSaveToStorage() {
-  try { sessionStorage.setItem('hrData', JSON.stringify(hrData)); } catch(e){}
+  // Supabase에 저장하므로 localStorage 불필요
 }
 function hrLoadFromStorage() {
-  try {
-    const s = sessionStorage.getItem('hrData');
-    if (s) hrData = JSON.parse(s);
-  } catch(e){}
+  // Supabase에서 로드하므로 localStorage 불필요
 }
 
 function hrRender() {
