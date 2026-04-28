@@ -1769,13 +1769,27 @@ function ckBtn(no, key) {
 
 // ── KPI ────────────────────────────────────────────────────
 function initKPI() {
-  const done = D.filter(isDone).length;
-  const wait = D.filter(isWait).length;
-  const mfg  = D.filter(isMfg).length;
+  const total = D.length;
+  const done  = D.filter(isDone).length;
+  const wait  = D.filter(isWait).length;
+  const mfg   = D.filter(isMfg).length;
+  // 전체 건수 동적 업데이트
+  const kvTotal = document.getElementById('kpi-0');
+  if (kvTotal) {
+    const valEl = kvTotal.querySelector('.kpi-value');
+    if (valEl) valEl.textContent = total;
+  }
   document.getElementById('kv-done').textContent = done;
-  document.getElementById('ks-done').textContent = Math.round(done/27*100) + '% 완료';
+  document.getElementById('ks-done').textContent = total > 0 ? Math.round(done/total*100) + '% 완료' : '0% 완료';
   document.getElementById('kv-wait').textContent = wait;
   document.getElementById('kv-mfg').textContent  = mfg;
+  // pg-sub 건수 업데이트
+  const pgSub = document.getElementById('pg-sub');
+  if (pgSub) {
+    const today = new Date();
+    const dateStr = today.getFullYear() + '.' + String(today.getMonth()+1).padStart(2,'0') + '.' + String(today.getDate()).padStart(2,'0');
+    pgSub.textContent = dateStr + ' 기준 · 총 ' + total + '건';
+  }
 }
 
 // ── 테이블 렌더 ────────────────────────────────────────────
@@ -2630,7 +2644,7 @@ function downloadExcel() {
     // 헤더 행
     var headers = [
       'No', '현장명', '동', '구분', 'PIT NO.', '규격',
-      '상차일', '현장도착일', '마감', '단가(원)', '출하상태', '비고'
+      '상차일', '현장도착일', '마감', '단가(원)', '비고'
     ];
 
     // 데이터 행
@@ -2646,14 +2660,13 @@ function downloadExcel() {
         excelDate(d.ad),
         d.dl   || '',
         d.price || 0,
-        shipText(d),
         d.note || ''
       ];
     });
 
     // 합계 행
     var total = rows.reduce(function(s, d){ return s + (d.price || 0); }, 0);
-    var sumRow = ['', '', '', '', '', '', '', '', '합계', total, '', ''];
+    var sumRow = ['', '', '', '', '', '', '', '', '합계', total, ''];
 
     // 워크북 생성
     var wb = XLSX.utils.book_new();
@@ -2672,7 +2685,6 @@ function downloadExcel() {
       {wch:12},  // 도착일
       {wch:8},   // 마감
       {wch:13},  // 단가
-      {wch:10},  // 출하상태
       {wch:30},  // 비고
     ];
 
