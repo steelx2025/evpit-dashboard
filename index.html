@@ -1583,6 +1583,12 @@ async function loadAll() {
     D.forEach(function(d) {
       matState[d.no] = { b: d.mat_b || '', s: d.mat_s || '' };
     });
+    // stepState 누락 항목 초기화 (새로 추가된 항목 대비)
+    D.forEach(function(d) {
+      if (!stepState[d.no]) {
+        stepState[d.no] = { pre: false, bp: false, sp: false, weld: false };
+      }
+    });
     (stepsRes.data || []).forEach(r => {
       stepState[r.item_no] = { pre: r.pre, bp: r.bp, sp: r.sp, weld: r.weld };
     });
@@ -1656,7 +1662,12 @@ function showToast(msg) {
 // ── 상태 판별 ──────────────────────────────────────────────
 function isDone(d){ return d.p_ship === '완료'; }
 function isWait(d){ return d.p_ship === '출하대기'; }
-function isMfg(d) { return !!(stepState[d.no]?.pre) && !isDone(d) && !isWait(d); }
+function isMfg(d) {
+  if (isDone(d) || isWait(d)) return false;
+  const s = stepState[d.no];
+  const anyDone = s && (s.pre || s.bp || s.sp || s.weld);
+  return anyDone || d.p_ship === '제작중';
+}
 function getStatus(d) {
   if (isDone(d))  return { label:'출하완료',   cls:'p-done' };
   if (isWait(d))  return { label:'출하대기',   cls:'p-wait' };
@@ -2368,6 +2379,9 @@ function shipCheckHtml(d) {
       <div class="ship-checkbox waiting">대기</div>
       <span class="ship-label waiting">출하대기</span>
     </div>`;
+  } else if (isMfg(d)) {
+    // 제작중 - 공정단계 1개 이상 체크된 상태
+    return `<span class="pill p-mfg">제작중</span>`;
   } else {
     const st = getStatus(d);
     return `<span class="pill ${st.cls}">${st.label}</span>`;
@@ -2434,19 +2448,32 @@ async function toggleStep(no, key) {
 
   const s = stepState[no];
   const d = D.find(x => x.no === no);
-  const allDone = s.pre && s.bp && s.sp && s.weld;
+  const allDone  = s.pre && s.bp && s.sp && s.weld;
+  const anyDone  = s.pre || s.bp || s.sp || s.weld;
 
-  if (d) {
-    if (allDone && !d.p_ship) {
-      // 4개 모두 완료 + 아직 출하상태 없음 → 출하대기 자동
-      d.p_ship = '출하대기';
-      await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
-      showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
-    } else if (!allDone && d.p_ship === '출하대기') {
-      // 1개라도 해제 + 출하대기 상태 → 제작중으로 복귀
-      d.p_ship = '';
-      await sb.from('pit_items').update({ p_ship: '' }).eq('no', no);
-      showToast('↩️ 공정 미완료 — 제작중으로 변경됐어요');
+  if (d && d.p_ship !== '완료') {
+    // 출하완료 상태는 절대 건드리지 않음
+    if (allDone) {
+      // 4개 모두 → 출하대기 자동
+      if (d.p_ship !== '출하대기') {
+        d.p_ship = '출하대기';
+        await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
+        showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
+      }
+    } else if (anyDone) {
+      // 1개라도 체크 → 제작중
+      if (d.p_ship !== '제작중') {
+        d.p_ship = '제작중';
+        await sb.from('pit_items').update({ p_ship: '제작중' }).eq('no', no);
+        showToast('🔧 제작중으로 변경됐어요');
+      }
+    } else {
+      // 모두 해제 → 초기 상태
+      if (d.p_ship === '제작중' || d.p_ship === '출하대기') {
+        d.p_ship = '';
+        await sb.from('pit_items').update({ p_ship: '' }).eq('no', no);
+        showToast('↩️ 공정 초기화됐어요');
+      }
     }
   }
 
