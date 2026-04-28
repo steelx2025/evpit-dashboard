@@ -2216,24 +2216,6 @@ function printLabel() {
   document.getElementById('print-area').style.display = 'none';
 }
 
-
-
-;
-  stepState[no][key] = !stepState[no][key];
-
-  // 4단계 모두 완료 && 현재 출하상태가 비어있으면 → 출하대기 자동 설정
-  const s = stepState[no];
-  const d = D.find(x => x.no === no);
-  if (d && s.pre && s.bp && s.sp && s.weld && !d.p_ship) {
-    d.p_ship = '출하대기';
-    await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
-    showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
-  }
-
-  initKPI(); renderTable();
-  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
-}
-
 // ── 출하완료 토글 ─────────────────────────────
 async function toggleShipDone(no) {
   const d = D.find(x => x.no === no);
