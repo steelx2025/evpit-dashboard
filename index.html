@@ -3051,7 +3051,7 @@ const HR_CONFIG = {
   obk: {
     name: '오병조 공장장',
     type: 'monthly', // 월급
-    statuses: ['출근', '결근', '연차', '공휴일'],
+    statuses: ['출근', '결근', '연차', '휴무'],
   }
 };
 
@@ -3223,8 +3223,8 @@ function hrRenderOBK(year, month, dim, today) {
   const statusMap = {
     '출근':   { icon:'✓', cls:'work',    badge:'hr-badge-work',    label:'출근'   },
     '결근':   { icon:'✗', cls:'holiday', badge:'hr-badge-holiday', label:'결근'   },
-    '연차':   { icon:'📅', cls:'vacation',badge:'hr-badge-vac',    label:'연차'   },
-    '공휴일': { icon:'🎌', cls:'holiday', badge:'hr-badge-holiday', label:'공휴일' },
+    '연차':   { icon:'🌴', cls:'vacation',badge:'hr-badge-vac',    label:'연차'   },
+    '휴무':   { icon:'🔴', cls:'holiday', badge:'hr-badge-holiday', label:'휴무'   },
     '':       { icon:'—', cls:'off',     badge:'',                 label:''       },
   };
 
@@ -3246,7 +3246,7 @@ function hrRenderOBK(year, month, dim, today) {
     if(st==='연차') vacDays++;
 
     // 상태 선택 버튼
-    const statBtns = ['출근','결근','연차','공휴일',''].map(s => {
+    const statBtns = ['출근','결근','연차','휴무',''].map(s => {
       const m2=statusMap[s]||statusMap[''];
       const active=s===st?'style="outline:2px solid #1a1a1a;outline-offset:2px"':'';
       return `<button class="attend-check ${m2.cls}" ${active}
