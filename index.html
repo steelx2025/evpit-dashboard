@@ -2261,18 +2261,11 @@ async function toggleStep(no, key) {
 
 function goService(name) {
   document.getElementById('hub-screen').classList.remove('show');
-  // 모든 서비스 화면 숨기기
-  ['pit','calendar','estimate'].forEach(n => {
+  ['pit','calendar','estimate'].forEach(function(n) {
     document.getElementById('service-' + n).style.display = 'none';
   });
-
   if (name === 'pit') {
     document.getElementById('service-pit').style.display = 'block';
-    // 로딩 표시 즉시 숨기고 테이블 보이게
-    const loading = document.getElementById('list-loading');
-    const table   = document.getElementById('list-table');
-    if (loading) loading.style.display = 'flex';
-    if (table)   table.style.display   = 'none';
     loadAll();
   } else if (name === 'calendar') {
     document.getElementById('service-calendar').style.display = 'block';
