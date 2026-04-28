@@ -948,9 +948,49 @@ tr:hover td{background:#fafafa}
   font-size:13px;cursor:pointer;
 }
 
+
 /* 인쇄 전용 스타일 */
 @media print {
-  body > *:not(#print-area){ display:none !important; }
+  @page { size: A4 landscape; margin: 0; }
+  html, body { margin:0; padding:0; width:100%; height:100%; }
+  body > *:not(#print-area) { display:none !important; }
+  #print-area {
+    display:block !important;
+    position:fixed; inset:0;
+    width:297mm; height:210mm;
+    padding:12mm;
+    background:#fff;
+    box-sizing:border-box;
+  }
+  .pa-table {
+    width:100%; height:100%;
+    border-collapse:collapse;
+    border:5px solid #000;
+    table-layout:fixed;
+  }
+  .pa-row { }
+  .pa-key {
+    background:#00e676 !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+    padding:0 24px;
+    font-size:28px; font-weight:800;
+    width:130px;
+    border-right:4px solid #000;
+    border-bottom:4px solid #000;
+    vertical-align:middle;
+    text-align:center;
+  }
+  .pa-row:last-child .pa-key,
+  .pa-row:last-child .pa-val { border-bottom:none; }
+  .pa-val {
+    padding:0 32px;
+    font-size:36px; font-weight:700;
+    vertical-align:middle;
+    border-bottom:4px solid #000;
+  }
+}
+
   #print-area{
     display:block !important;
     position:fixed;inset:0;
@@ -1343,6 +1383,7 @@ tr:hover td{background:#fafafa}
               <th rowspan="2" style="min-width:56px">도착일</th>
               <th rowspan="2" style="min-width:46px">마감</th>
               <th rowspan="2" class="left" style="min-width:130px">비고</th>
+              <th rowspan="2" style="min-width:52px;text-align:center">인쇄</th>
               <th rowspan="2" style="min-width:44px">삭제</th>
             </tr>
             <tr>
@@ -1462,14 +1503,17 @@ async function loadAll() {
     (settleRes.data || []).forEach(r => {
       settle[r.month] = { on: r.settled, note: r.note || '' };
     });
-    const ll = document.getElementById('list-loading');
-    const lt = document.getElementById('list-table');
-    if(ll) ll.style.display = 'none';
-    if(lt) lt.style.display = 'block';
+    var ll = document.getElementById('list-loading');
+    var lt = document.getElementById('list-table');
+    if (ll) { ll.style.display = 'none'; ll.style.visibility = 'hidden'; }
+    if (lt) { lt.style.display = 'block'; lt.style.visibility = 'visible'; }
     updateSyncTime();
     initKPI(); renderTable(); renderCal(); renderDL(); renderSites();
     renderDoneCards(); renderWaitCards(); renderMfgCards(); renderRev();
+    if (!window._realtimeSubscribed) {
     subscribeRealtime();
+    window._realtimeSubscribed = true;
+  }
   } catch(e) {
     document.getElementById('list-loading').innerHTML = '⚠️ 데이터 로드 실패. 새로고침해주세요.';
   }
@@ -1683,6 +1727,7 @@ function renderTable() {
       <td style="color:#999">${fmtDate(d.ad)}</td>
       <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
       <td class="left" style="padding:6px 10px">${noteCellHtml(d.no, d.note)}</td>
+      <td style="text-align:center"><button class="print-btn" onclick="openLabelModal(${d.no})" title="부착표지 인쇄">🖨</button></td>
       <td><button class="del-btn" onclick="openDelModal(${d.no},'${d.pit}','${d.site}')" title="삭제">✕</button></td>
     </tr>`;
   }).join('');
@@ -1849,18 +1894,13 @@ function goKpi(name) {
 function noteCellHtml(no, note) {
   const txt = note || '—';
   const cls = note ? 'has-value' : '';
-  return `<div style="display:flex;align-items:flex-start;gap:4px">
-    <button class="print-btn" onclick="openLabelModal(${no})" title="부착표지 인쇄">🖨</button>
-    <div style="flex:1">
-      <div class="note-cell" onclick="openNoteEdit(${no}, event)">
-        <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
-        <span class="note-edit-icon">✎</span>
-      </div>
-      <div class="note-input-wrap" id="note-wrap-${no}">
-        <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
-        <button class="note-save-btn" onclick="saveNoteInline(${no})">저장</button>
-      </div>
-    </div>
+  return `<div class="note-cell" onclick="openNoteEdit(${no}, event)">
+    <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
+    <span class="note-edit-icon">✎</span>
+  </div>
+  <div class="note-input-wrap" id="note-wrap-${no}">
+    <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
+    <button class="note-save-btn" onclick="saveNoteInline(${no})">저장</button>
   </div>`;
 }
 
@@ -2265,16 +2305,25 @@ async function toggleStep(no, key) {
 }
 
 function goService(name) {
-  // 1. 허브 숨기기
   document.getElementById('hub-screen').classList.remove('show');
-  // 2. 모든 서비스 숨기기
   ['pit','calendar','estimate'].forEach(function(n) {
     document.getElementById('service-' + n).style.display = 'none';
   });
-  // 3. 해당 서비스 먼저 보이기
   if (name === 'pit') {
     document.getElementById('service-pit').style.display = 'block';
-    // 4. 데이터 로드 (화면이 보이는 상태에서 렌더링)
+    // 필터 전체로 초기화
+    cf = 'all';
+    var allBtn = document.querySelector('#list-filt .fb[data-f="all"]');
+    if (allBtn) {
+      document.querySelectorAll('#list-filt .fb').forEach(function(b){ b.classList.remove('on'); });
+      allBtn.classList.add('on');
+    }
+    // 로딩바 표시
+    var ll = document.getElementById('list-loading');
+    var lt = document.getElementById('list-table');
+    if (ll) ll.style.display = 'flex';
+    if (lt) lt.style.display = 'none';
+    // 데이터 로드
     loadAll();
   } else if (name === 'calendar') {
     document.getElementById('service-calendar').style.display = 'block';
