@@ -866,10 +866,204 @@ tr:hover td{background:#fafafa}
 .cs-title{ font-size:22px;font-weight:700;margin-bottom:10px;color:#1a1a1a; }
 .cs-desc{ font-size:14px;color:#999;line-height:1.7;text-align:center;max-width:340px; }
 
+
+/* ── 부착표지 ─────────────────────────── */
+.print-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:6px;
+  background:transparent;border:1px solid #e0e0e0;
+  color:#999;font-size:13px;cursor:pointer;
+  transition:all .15s;margin-left:4px;
+}
+.print-btn:hover{ background:#E6F1FB;border-color:#378ADD;color:#185FA5; }
+
+/* 부착표지 모달 */
+.label-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:3500;display:none;
+  align-items:center;justify-content:center;
+}
+.label-overlay.open{ display:flex; }
+.label-modal{
+  background:#fff;border-radius:16px;
+  padding:32px;width:480px;
+  box-shadow:0 24px 60px rgba(0,0,0,.25);
+}
+.label-modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:24px;
+}
+.label-modal-title{ font-size:15px;font-weight:700; }
+.label-modal-close{
+  width:30px;height:30px;border-radius:50%;
+  background:#f5f5f5;border:none;cursor:pointer;
+  font-size:14px;color:#666;
+  display:flex;align-items:center;justify-content:center;
+}
+.label-modal-close:hover{ background:#e5e5e5; }
+
+/* 표지 미리보기 */
+.label-preview{
+  border:3px solid #000;
+  border-radius:4px;
+  overflow:hidden;
+  margin-bottom:20px;
+}
+.label-row{
+  display:grid;
+  grid-template-columns:140px 1fr;
+  border-bottom:2px solid #000;
+}
+.label-row:last-child{ border-bottom:none; }
+.label-key{
+  background:#00e676;
+  padding:16px 14px;
+  font-size:16px;font-weight:700;
+  color:#000;
+  border-right:2px solid #000;
+  display:flex;align-items:center;
+}
+.label-val{
+  padding:16px 18px;
+  font-size:18px;font-weight:600;
+  color:#000;
+  display:flex;align-items:center;
+  background:#fff;
+}
+.label-btn-row{
+  display:flex;gap:10px;
+}
+.label-print-btn{
+  flex:1;padding:12px;
+  background:#1a1a1a;color:#fff;
+  border:none;border-radius:8px;
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.label-print-btn:hover{ background:#333; }
+.label-cancel-btn{
+  padding:12px 20px;
+  background:#f5f5f5;color:#666;
+  border:none;border-radius:8px;
+  font-size:13px;cursor:pointer;
+}
+
+/* 인쇄 전용 스타일 */
+@media print {
+  body > *:not(#print-area){ display:none !important; }
+  #print-area{
+    display:block !important;
+    position:fixed;inset:0;
+    background:#fff;z-index:99999;
+    padding:30px;
+  }
+  .pa-table{
+    width:100%;border-collapse:collapse;
+    border:4px solid #000;
+  }
+  .pa-row{ border-bottom:3px solid #000; }
+  .pa-row:last-child{ border-bottom:none; }
+  .pa-key{
+    background:#00e676 !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+    padding:22px 20px;
+    font-size:22px;font-weight:800;
+    width:160px;border-right:3px solid #000;
+    vertical-align:middle;
+  }
+  .pa-val{
+    padding:22px 24px;
+    font-size:26px;font-weight:700;
+    vertical-align:middle;
+  }
+}
+
+/* 출하완료 체크 */
+.ship-check-wrap{
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  border-radius:6px;padding:3px 8px;transition:background .12s;
+}
+.ship-check-wrap:hover{ background:#f5f5f5; }
+.ship-checkbox{
+  width:18px;height:18px;border-radius:4px;
+  border:1.5px solid #ccc;background:#fff;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;transition:all .15s;flex-shrink:0;
+}
+.ship-checkbox.checked{ background:#1D9E75;border-color:#1D9E75;color:#fff; }
+.ship-checkbox.waiting{ background:#FAEEDA;border-color:#EF9F27;color:#633806;font-size:9px;font-weight:600; }
+.ship-label{ font-size:11px;color:#999; }
+.ship-label.checked{ color:#1D9E75;font-weight:600; }
+.ship-label.waiting{ color:#633806;font-weight:600; }
+
 </style>
 </head>
 <body>
 
+
+
+<!-- ★ 부착표지 모달 ★ -->
+<div class="label-overlay" id="label-overlay">
+  <div class="label-modal">
+    <div class="label-modal-header">
+      <div class="label-modal-title">🖨️ 부착표지 미리보기</div>
+      <button class="label-modal-close" onclick="closeLabelModal()">✕</button>
+    </div>
+    <div class="label-preview">
+      <div class="label-row">
+        <div class="label-key">현장명</div>
+        <div class="label-val" id="lv-site"></div>
+      </div>
+      <div class="label-row">
+        <div class="label-key">동</div>
+        <div class="label-val" id="lv-dong"></div>
+      </div>
+      <div class="label-row">
+        <div class="label-key">PIT NO.</div>
+        <div class="label-val" id="lv-pit"></div>
+      </div>
+      <div class="label-row">
+        <div class="label-key">규격</div>
+        <div class="label-val" id="lv-spec"></div>
+      </div>
+      <div class="label-row">
+        <div class="label-key">현장도착일</div>
+        <div class="label-val" id="lv-ad"></div>
+      </div>
+    </div>
+    <div class="label-btn-row">
+      <button class="label-cancel-btn" onclick="closeLabelModal()">닫기</button>
+      <button class="label-print-btn" onclick="printLabel()">🖨️ 인쇄하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 인쇄 전용 영역 -->
+<div id="print-area" style="display:none">
+  <table class="pa-table">
+    <tr class="pa-row">
+      <td class="pa-key">현장명</td>
+      <td class="pa-val" id="pa-site"></td>
+    </tr>
+    <tr class="pa-row">
+      <td class="pa-key">동</td>
+      <td class="pa-val" id="pa-dong"></td>
+    </tr>
+    <tr class="pa-row">
+      <td class="pa-key">PIT NO.</td>
+      <td class="pa-val" id="pa-pit"></td>
+    </tr>
+    <tr class="pa-row">
+      <td class="pa-key">규격</td>
+      <td class="pa-val" id="pa-spec"></td>
+    </tr>
+    <tr class="pa-row">
+      <td class="pa-key">현장도착일</td>
+      <td class="pa-val" id="pa-ad"></td>
+    </tr>
+  </table>
+</div>
 
 <!-- ★ 항목 추가 슬라이드 패널 ★ -->
 <div class="side-overlay" id="side-overlay" onclick="closePanel()"></div>
@@ -1488,7 +1682,7 @@ function renderTable() {
       <td>${ckBtn(d.no,'bp')}</td>
       <td>${ckBtn(d.no,'sp')}</td>
       <td>${ckBtn(d.no,'weld')}</td>
-      <td class="sep"><span class="pill ${st.cls}">${st.label}</span></td>
+      <td class="sep">${shipCheckHtml(d)}</td>
       <td style="color:#999">${fmtDate(d.sd)}</td>
       <td style="color:#999">${fmtDate(d.ad)}</td>
       <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
@@ -1985,6 +2179,107 @@ function backToHub() {
   document.getElementById('service-calendar').style.display = 'none';
   document.getElementById('service-estimate').style.display = 'none';
   document.getElementById('hub-screen').classList.add('show');
+}
+
+
+function shipCheckHtml(d) {
+  if (d.p_ship === '완료') {
+    return `<div class="ship-check-wrap" onclick="toggleShipDone(${d.no})" title="클릭하면 출하대기로 변경">
+      <div class="ship-checkbox checked">✓</div>
+      <span class="ship-label checked">출하완료</span>
+    </div>`;
+  } else if (d.p_ship === '출하대기') {
+    return `<div class="ship-check-wrap" onclick="toggleShipDone(${d.no})" title="클릭하면 출하완료 처리">
+      <div class="ship-checkbox waiting">대기</div>
+      <span class="ship-label waiting">출하대기</span>
+    </div>`;
+  } else {
+    const st = getStatus(d);
+    return `<span class="pill ${st.cls}">${st.label}</span>`;
+  }
+}
+
+// ── 수정1: 부착표지 ──────────────────────────
+function openLabelModal(no) {
+  const d = D.find(x => x.no === no);
+  if (!d) return;
+  // 도착일 포맷
+  let adStr = '—';
+  if (d.ad) {
+    const dt = new Date(d.ad);
+    const days = ['일','월','화','수','목','금','토'];
+    adStr = `${dt.getFullYear()}년 ${dt.getMonth()+1}월 ${dt.getDate()}일 ${days[dt.getDay()]}요일`;
+  }
+  document.getElementById('lv-site').textContent = d.site || '—';
+  document.getElementById('lv-dong').textContent = d.dong || '—';
+  document.getElementById('lv-pit').textContent  = d.pit  || '—';
+  document.getElementById('lv-spec').textContent = d.spec || '—';
+  document.getElementById('lv-ad').textContent   = adStr;
+  document.getElementById('label-overlay').classList.add('open');
+}
+function closeLabelModal() {
+  document.getElementById('label-overlay').classList.remove('open');
+}
+function printLabel() {
+  // 인쇄 영역에 데이터 복사
+  ['site','dong','pit','spec','ad'].forEach(k => {
+    const el = document.getElementById('pa-' + k);
+    if (el) el.textContent = document.getElementById('lv-' + k).textContent;
+  });
+  document.getElementById('print-area').style.display = 'block';
+  window.print();
+  document.getElementById('print-area').style.display = 'none';
+}
+
+// ── 수정2: EV PIT 진입 시 즉시 데이터 로드 ──
+const _origGoService = goService;
+// goService는 이미 D.length===0 체크하므로 loadAll 강제 호출
+function goService(name) {
+  document.getElementById('hub-screen').classList.remove('show');
+  if (name === 'pit') {
+    document.getElementById('service-pit').style.display = 'block';
+    loadAll(); // 항상 최신 데이터 로드
+  } else if (name === 'calendar') {
+    document.getElementById('service-calendar').style.display = 'block';
+  } else if (name === 'estimate') {
+    document.getElementById('service-estimate').style.display = 'block';
+  }
+}
+
+// ── 수정3: 공정단계 4개 완료 시 출하대기 자동 전환 ──────
+// toggleStep 오버라이드
+const _origToggleStep = toggleStep;
+async function toggleStep(no, key) {
+  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
+  stepState[no][key] = !stepState[no][key];
+
+  // 4단계 모두 완료 && 현재 출하상태가 비어있으면 → 출하대기 자동 설정
+  const s = stepState[no];
+  const d = D.find(x => x.no === no);
+  if (d && s.pre && s.bp && s.sp && s.weld && !d.p_ship) {
+    d.p_ship = '출하대기';
+    await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
+    showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
+  }
+
+  initKPI(); renderTable();
+  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
+}
+
+// ── 출하완료 토글 ─────────────────────────────
+async function toggleShipDone(no) {
+  const d = D.find(x => x.no === no);
+  if (!d) return;
+  if (d.p_ship === '출하대기') {
+    d.p_ship = '완료';
+    await sb.from('pit_items').update({ p_ship: '완료' }).eq('no', no);
+    showToast('✅ 출하완료 처리됐어요!');
+  } else if (d.p_ship === '완료') {
+    d.p_ship = '출하대기';
+    await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
+    showToast('↩️ 출하대기로 변경됐어요');
+  }
+  initKPI(); renderTable(); renderDoneCards(); renderWaitCards();
 }
 
 </script>
