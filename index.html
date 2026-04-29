@@ -3495,11 +3495,11 @@ function hrRenderPiana(year, month, dim, today) {
     totalAmt += (parseFloat(r2.steelx)||0)*HR_RATES.steelx + (parseFloat(r2.yr)||0)*HR_RATES.yr;
   }
 
-  rows += `<tr class="sum-row">
+  rows += `<tr class="sum-row" id="piana-sum-row">
     <td>합계</td>
-    <td>${totalSx}공수</td>
-    <td>${totalYr}공수</td>
-    <td>₩${totalAmt.toLocaleString()}</td>
+    <td id="piana-sum-sx">${totalSx}공수</td>
+    <td id="piana-sum-yr">${totalYr}공수</td>
+    <td id="piana-sum-amt">₩${totalAmt.toLocaleString()}</td>
     <td></td>
   </tr>`;
 
@@ -3677,6 +3677,29 @@ function hrUpdateKPI() {
       </div>`;
   }
   document.getElementById('hr-kpi-row').innerHTML=kpiHTML;
+
+  // 합계 행 즉시 업데이트 (피안나)
+  if (hrEmp === 'piana') {
+    const sxEl  = document.getElementById('piana-sum-sx');
+    const yrEl  = document.getElementById('piana-sum-yr');
+    const amtEl = document.getElementById('piana-sum-amt');
+    if (sxEl && yrEl && amtEl) {
+      const pianaKey = 'piana_' + hrYear + '_' + String(hrMonth).padStart(2,'0');
+      const dim2 = new Date(hrYear, hrMonth, 0).getDate();
+      let sx2=0, yr2=0, amt2=0;
+      for (let d=1; d<=dim2; d++) {
+        const dd = String(d).padStart(2,'0');
+        const r = (hrData[pianaKey] && hrData[pianaKey][dd]) ? hrData[pianaKey][dd] : null;
+        if (!r) continue;
+        sx2  += parseFloat(r.steelx)||0;
+        yr2  += parseFloat(r.yr)||0;
+        amt2 += (parseFloat(r.steelx)||0)*HR_RATES.steelx + (parseFloat(r.yr)||0)*HR_RATES.yr;
+      }
+      sxEl.textContent  = sx2  + '공수';
+      yrEl.textContent  = yr2  + '공수';
+      amtEl.textContent = '₩' + amt2.toLocaleString();
+    }
+  }
 }
 
 // ── 엑셀 다운로드 ──────────────────────────────────────
