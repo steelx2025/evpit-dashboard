@@ -1352,6 +1352,30 @@ table.hr-tbl tr.sum-row td {
   font-size:10px;opacity:.5;
 }
 
+
+/* ── 규격 인라인 편집 ─────────────────────── */
+.spec-cell {
+  display:inline-flex;align-items:center;gap:5px;
+  cursor:pointer;border-radius:6px;padding:3px 6px;
+  transition:background .12s;max-width:150px;
+}
+.spec-cell:hover { background:#f5f5f5; }
+.spec-text { font-size:12px;color:#999; }
+.spec-text.has-value { color:#555; }
+.spec-edit-icon { font-size:10px;color:#ccc;flex-shrink:0; }
+.spec-input-wrap { display:none; }
+.spec-input-wrap.open { display:flex;align-items:center;gap:4px; }
+.spec-input {
+  font-size:12px;padding:4px 8px;border-radius:6px;
+  border:1.5px solid #1a1a1a;background:#fff;
+  color:#1a1a1a;outline:none;width:150px;font-family:inherit;
+}
+.spec-save-btn {
+  font-size:11px;padding:4px 8px;border-radius:6px;
+  border:none;background:#1a1a1a;color:#fff;cursor:pointer;
+  white-space:nowrap;
+}
+
 </style>
 </head>
 <body>
@@ -2136,7 +2160,7 @@ function renderTable() {
       <td style="color:#999">${d.dong}</td>
       <td style="color:#999">${d.gu}</td>
       <td style="font-weight:600">${d.pit}</td>
-      <td style="color:#999;font-size:11px">${d.spec}</td>
+      <td style="padding:4px 8px">${specCellHtml(d.no, d.spec)}</td>
       <td class="sep">${matCellHtml(d.no,'b')}</td>
       <td>${matCellHtml(d.no,'s')}</td>
       <td class="sep">${ckBtn(d.no,'pre')}</td>
@@ -3657,6 +3681,76 @@ function hrDownloadExcel() {
   XLSX.writeFile(wb,'STEELX_직원관리_'+empName+'_'+year+'년'+month+'월_'+ds+'.xlsx');
   showToast('📥 급여명세 다운로드 완료!');
 }
+
+
+// ── 규격 인라인 편집 ─────────────────────────────────────
+function specCellHtml(no, spec) {
+  const txt = spec || '—';
+  const cls = spec ? 'has-value' : '';
+  return `<div class="spec-cell" onclick="openSpecEdit(${no}, event)">
+    <span class="spec-text ${cls}" id="spec-txt-${no}">${txt}</span>
+    <span class="spec-edit-icon">✎</span>
+  </div>
+  <div class="spec-input-wrap" id="spec-wrap-${no}">
+    <input class="spec-input" id="spec-in-${no}" type="text"
+      value="${spec||''}"
+      placeholder="예) 2350*2250*2250"
+      onkeydown="specKeyDown(event,${no})">
+    <button class="spec-save-btn" onclick="saveSpec(${no})">저장</button>
+  </div>`;
+}
+
+function openSpecEdit(no, event) {
+  event.stopPropagation();
+  // 다른 열린 편집창 닫기
+  document.querySelectorAll('.spec-input-wrap.open').forEach(el => {
+    el.classList.remove('open');
+  });
+  const wrap = document.getElementById('spec-wrap-' + no);
+  if (wrap) {
+    wrap.classList.add('open');
+    setTimeout(function() {
+      const inp = document.getElementById('spec-in-' + no);
+      if (inp) { inp.focus(); inp.select(); }
+    }, 50);
+  }
+}
+
+function specKeyDown(event, no) {
+  if (event.key === 'Enter') { event.preventDefault(); saveSpec(no); }
+  if (event.key === 'Escape') {
+    const wrap = document.getElementById('spec-wrap-' + no);
+    if (wrap) wrap.classList.remove('open');
+  }
+}
+
+async function saveSpec(no) {
+  const inp = document.getElementById('spec-in-' + no);
+  if (!inp) return;
+  const val = inp.value.trim();
+  const d = D.find(x => x.no === no);
+  if (d) d.spec = val;
+
+  // UI 즉시 반영
+  const txtEl = document.getElementById('spec-txt-' + no);
+  if (txtEl) {
+    txtEl.textContent = val || '—';
+    txtEl.className = 'spec-text' + (val ? ' has-value' : '');
+  }
+  const wrap = document.getElementById('spec-wrap-' + no);
+  if (wrap) wrap.classList.remove('open');
+
+  // DB 저장
+  await sb.from('pit_items').update({ spec: val }).eq('no', no);
+  showToast('규격 저장됐어요 ✓');
+}
+
+// 테이블 외부 클릭 시 규격 편집창 닫기
+document.addEventListener('click', function() {
+  document.querySelectorAll('.spec-input-wrap.open').forEach(el => {
+    el.classList.remove('open');
+  });
+});
 
 </script>
 </body>
