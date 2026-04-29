@@ -3573,7 +3573,7 @@ function hrRenderOBK(year, month, dim, today) {
       const statBtns = ['출근','결근','연차','휴무'].map(s => {
         const m2 = statusMap[s]||statusMap[''];
         return `<button class="attend-check ${m2.cls}"
-          onclick="hrSetData('obk',${year},${month},'${dd}','status','${s}');hrUpdateKPI();"
+          onclick="hrSetOBKStatus(${year},${month},'${dd}','${s}',this)"
           title="${s}">${m2.icon}</button>`;
       }).join('');
       statCell = `<div style="display:flex;align-items:center;gap:4px;justify-content:center">${statBtns}</div>`;
@@ -3581,7 +3581,7 @@ function hrRenderOBK(year, month, dim, today) {
 
     rows+=`<tr class="${rowCls}">
       <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
-      <td>${statCell}</td>
+      <td id="obk-status-${year}-${String(month).padStart(2,'0')}-${dd}">${statCell}</td>
       <td style="text-align:left">
         <input class="hr-note-input" type="text" value="${rec.note||''}"
           onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value);showToast('비고 저장됐어요 ✓');"
@@ -3810,6 +3810,62 @@ document.addEventListener('click', function() {
     el.classList.remove('open');
   });
 });
+
+
+// ── 공장장 상태 즉시 업데이트 ──────────────────
+async function hrSetOBKStatus(year, month, dd, status, el) {
+  const obkKey = 'obk_' + year + '_' + String(month).padStart(2,'0');
+  if (!hrData[obkKey]) hrData[obkKey] = {};
+  if (!hrData[obkKey][dd]) hrData[obkKey][dd] = { status:'', note:'' };
+  hrData[obkKey][dd].status = status;
+
+  // 해당 행의 상태 셀만 즉시 업데이트
+  const statusMap = {
+    '출근':  { color:'#1D9E75', bg:'#EAF3DE', border:'#1D9E75' },
+    '결근':  { color:'#E24B4A', bg:'#FCEBEB', border:'#E24B4A' },
+    '연차':  { color:'#EF9F27', bg:'#FAEEDA', border:'#EF9F27' },
+    '휴무':  { color:'#E24B4A', bg:'#FCEBEB', border:'#E24B4A' },
+  };
+
+  // 해당 날짜의 td 찾아서 업데이트
+  const tdId = 'obk-status-' + year + '-' + String(month).padStart(2,'0') + '-' + dd;
+  const td = document.getElementById(tdId);
+  if (td) {
+    if (status) {
+      const sm = statusMap[status] || {};
+      td.innerHTML = `<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer"
+        onclick="hrSetOBKStatus(${year},${month},'${dd}','',this)" title="클릭하면 초기화">
+        <span style="font-size:14px;font-weight:700;color:${sm.color};
+          background:${sm.bg};padding:4px 16px;border-radius:20px;
+          border:1.5px solid ${sm.border}">${status}</span>
+        <span style="font-size:10px;color:#ccc">✕</span>
+      </div>`;
+    } else {
+      // 버튼 4개 다시 표시
+      const statusList = ['출근','결근','연차','휴무'];
+      const icons = { '출근':'✓', '결근':'✗', '연차':'🌴', '휴무':'🔴' };
+      const cls   = { '출근':'work', '결근':'holiday', '연차':'vacation', '휴무':'holiday' };
+      td.innerHTML = '<div style="display:flex;align-items:center;gap:4px;justify-content:center">' +
+        statusList.map(s => `<button class="attend-check ${cls[s]}"
+          onclick="hrSetOBKStatus(${year},${month},'${dd}','${s}',this)"
+          title="${s}">${icons[s]}</button>`).join('') +
+        '</div>';
+    }
+  }
+
+  hrUpdateKPI();
+
+  // DB 저장
+  const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + dd;
+  const note = (hrData[obkKey][dd] && hrData[obkKey][dd].note) || '';
+  try {
+    await sb.from('hr_obk').upsert(
+      { work_date: dateStr, status: status, note: note },
+      { onConflict: 'work_date' }
+    );
+    showToast('저장됐어요 ✓');
+  } catch(e) { console.error('OBK 저장 오류:', e); }
+}
 
 </script>
 </body>
