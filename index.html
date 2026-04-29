@@ -3416,7 +3416,11 @@ function hrRenderPiana(year, month, dim, today) {
     const isWeekend = dow === 0 || dow === 6;
     const isToday = d === today.getDate() && month === today.getMonth()+1 && year === today.getFullYear();
     const dd      = String(d).padStart(2,'0');
-    const rec     = hrGetData('piana', year, month, dd);
+    // DB 데이터 직접 참조 (없으면 빈값)
+    const pianaKey2 = 'piana_' + year + '_' + String(month).padStart(2,'0');
+    const rec = (hrData[pianaKey2] && hrData[pianaKey2][dd])
+      ? hrData[pianaKey2][dd]
+      : { steelx:'', yr:'', note:'' };
     const sx      = parseFloat(rec.steelx) || 0;
     const yr      = parseFloat(rec.yr)     || 0;
     const total   = sx * HR_RATES.steelx + yr * HR_RATES.yr;
@@ -3435,12 +3439,12 @@ function hrRenderPiana(year, month, dim, today) {
     rows += `<tr class="${rowCls}">
       <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
       <td>
-        <select class="ks-select steelx${rec.steelx==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrRender()">
+        <select class="ks-select steelx${rec.steelx==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
           ${sxOpts}
         </select>
       </td>
       <td>
-        <select class="ks-select yr${rec.yr==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrRender()">
+        <select class="ks-select yr${rec.yr==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
           ${yrOpts}
         </select>
       </td>
@@ -3501,7 +3505,10 @@ function hrRenderOBK(year, month, dim, today) {
     const isWeekend=dow===0||dow===6;
     const isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
     const dd=String(d).padStart(2,'0');
-    const rec=hrGetData('obk',year,month,dd);
+    const obkKey2 = 'obk_' + year + '_' + String(month).padStart(2,'0');
+    const rec = (hrData[obkKey2] && hrData[obkKey2][dd])
+      ? hrData[obkKey2][dd]
+      : { status:'', note:'' };
     const st=rec.status||'';
     const sm=statusMap[st]||statusMap[''];
     const rowCls=isToday?'today-row':isWeekend?'weekend':'';
@@ -3538,7 +3545,7 @@ function hrRenderOBK(year, month, dim, today) {
       const statBtns = ['출근','결근','연차','휴무'].map(s => {
         const m2 = statusMap[s]||statusMap[''];
         return `<button class="attend-check ${m2.cls}"
-          onclick="hrSetData('obk',${year},${month},'${dd}','status','${s}');hrRender()"
+          onclick="hrSetData('obk',${year},${month},'${dd}','status','${s}');hrUpdateKPI();"
           title="${s}">${m2.icon}</button>`;
       }).join('');
       statCell = `<div style="display:flex;align-items:center;gap:4px;justify-content:center">${statBtns}</div>`;
@@ -3567,16 +3574,19 @@ function hrRenderOBK(year, month, dim, today) {
 
 // ── KPI 업데이트 ───────────────────────────────────────
 function hrUpdateKPI() {
-  hrLoadFromStorage();
   const year=hrYear, month=hrMonth;
   const dim=new Date(year,month,0).getDate();
+  const pianaKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
+  const obkKey   = 'obk_'   + year + '_' + String(month).padStart(2,'0');
   let kpiHTML='';
 
   if (hrEmp==='piana') {
     let totalSx=0,totalYr=0,totalAmt=0,workDays=0;
     for(let d=1;d<=dim;d++){
       const dd=String(d).padStart(2,'0');
-      const rec=hrGetData('piana',year,month,dd);
+      // hrData 직접 참조 (hrGetData는 빈값 생성하므로 사용 안함)
+      const rec = (hrData[pianaKey] && hrData[pianaKey][dd]) ? hrData[pianaKey][dd] : null;
+      if (!rec) continue;
       const sx=parseFloat(rec.steelx)||0;
       const yr=parseFloat(rec.yr)||0;
       if(sx>0||yr>0) workDays++;
