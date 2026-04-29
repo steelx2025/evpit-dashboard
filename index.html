@@ -3275,7 +3275,6 @@ let hrYear  = 2026;
 let hrMonth = 4; // 1-based
 
 async function initHR() {
-  await hrLoadFromSupabase();
   hrRender();
 }
 
@@ -3360,8 +3359,9 @@ function hrLoadFromStorage() {
   // Supabase에서 로드하므로 localStorage 불필요
 }
 
-function hrRender() {
-  hrLoadFromStorage();
+async function hrRender() {
+  // 항상 DB에서 최신 데이터 로드 후 렌더링
+  await hrLoadFromSupabase();
   const year = hrYear, month = hrMonth;
   document.getElementById('hr-month-label').textContent = year + '년 ' + month + '월';
 
