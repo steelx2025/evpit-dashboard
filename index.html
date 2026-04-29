@@ -3354,19 +3354,45 @@ function hrGetData(emp, year, month, day) {
 }
 
 async function hrSetData(emp, year, month, day, field, val) {
-  const d = hrGetData(emp, year, month, day);
-  d[field] = val;
+  // 1. hrData 캐시 직접 업데이트
+  const key = emp + '_' + year + '_' + String(month).padStart(2,'0');
+  if (!hrData[key]) hrData[key] = {};
+  if (!hrData[key][day]) {
+    hrData[key][day] = emp === 'piana'
+      ? { steelx:'', yr:'', note:'' }
+      : { status:'', note:'' };
+  }
+  hrData[key][day][field] = val;
+
+  // 2. KPI 즉시 업데이트
   hrUpdateKPI();
-  // Supabase에 저장
+
+  // 3. 합계 셀 즉시 업데이트 (피안나)
+  if (emp === 'piana') {
+    const rec = hrData[key][day];
+    const sx = parseFloat(rec.steelx) || 0;
+    const yr = parseFloat(rec.yr) || 0;
+    const total = sx * HR_RATES.steelx + yr * HR_RATES.yr;
+    const totalEl = document.getElementById('hr-total-' + day);
+    if (totalEl) {
+      totalEl.textContent = total > 0 ? '₩' + total.toLocaleString() : '₩0';
+      totalEl.className = total > 0 ? 'amount-cell' : 'amount-cell zero';
+    }
+  }
+
+  // 4. Supabase DB 저장
   const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + day;
   const table = emp === 'piana' ? 'hr_piana' : 'hr_obk';
-  const rec = hrGetData(emp, year, month, day);
+  const recToSave = Object.assign({ work_date: dateStr }, hrData[key][day]);
   try {
-    await sb.from(table).upsert(
-      Object.assign({ work_date: dateStr }, rec),
-      { onConflict: 'work_date' }
-    );
-  } catch(e) { console.error('HR 저장 오류:', e); }
+    const { error } = await sb.from(table).upsert(recToSave, { onConflict: 'work_date' });
+    if (error) {
+      console.error('HR 저장 오류:', error);
+      showToast('⚠️ 저장 실패: ' + error.message);
+    }
+  } catch(e) {
+    console.error('HR 저장 예외:', e);
+  }
 }
 
 // ── HR 데이터 로컬 캐시 (렌더링용) ─────────────
@@ -3439,32 +3465,34 @@ function hrRenderPiana(year, month, dim, today) {
     rows += `<tr class="${rowCls}">
       <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
       <td>
-        <select class="ks-select steelx${rec.steelx==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
+        <select class="ks-select steelx" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
           ${sxOpts}
         </select>
       </td>
       <td>
-        <select class="ks-select yr${rec.yr==='휴무'?' holiday':''}" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
+        <select class="ks-select yr" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
           ${yrOpts}
         </select>
       </td>
-      <td class="${amtCls}">${totalStr}</td>
+      <td class="${amtCls}" id="hr-total-${dd}">${totalStr}</td>
       <td style="text-align:left">
         <input class="hr-note-input" type="text" value="${rec.note||''}"
-          onchange="hrSetData('piana',${year},${month},'${dd}','note',this.value)"
+          onchange="hrSetData('piana',${year},${month},'${dd}','note',this.value);showToast('비고 저장됐어요 ✓');"
           placeholder="">
       </td>
     </tr>`;
   }
 
   // 합계 행
+  const sumKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
   let totalSx=0, totalYr=0, totalAmt=0;
   for (let d=1;d<=dim;d++){
     const dd=String(d).padStart(2,'0');
-    const rec=hrGetData('piana',year,month,dd);
-    totalSx  += parseFloat(rec.steelx)||0;
-    totalYr  += parseFloat(rec.yr)||0;
-    totalAmt += (parseFloat(rec.steelx)||0)*HR_RATES.steelx + (parseFloat(rec.yr)||0)*HR_RATES.yr;
+    const r2 = (hrData[sumKey] && hrData[sumKey][dd]) ? hrData[sumKey][dd] : null;
+    if (!r2) continue;
+    totalSx  += parseFloat(r2.steelx)||0;
+    totalYr  += parseFloat(r2.yr)||0;
+    totalAmt += (parseFloat(r2.steelx)||0)*HR_RATES.steelx + (parseFloat(r2.yr)||0)*HR_RATES.yr;
   }
 
   rows += `<tr class="sum-row">
@@ -3556,7 +3584,7 @@ function hrRenderOBK(year, month, dim, today) {
       <td>${statCell}</td>
       <td style="text-align:left">
         <input class="hr-note-input" type="text" value="${rec.note||''}"
-          onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value)"
+          onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value);showToast('비고 저장됐어요 ✓');"
           placeholder="">
       </td>
     </tr>`;
@@ -3620,7 +3648,8 @@ function hrUpdateKPI() {
       const dt=new Date(year,month-1,d);
       if(dt.getDay()!==0&&dt.getDay()!==6) totalDays++;
       const dd=String(d).padStart(2,'0');
-      const rec=hrGetData('obk',year,month,dd);
+      const rec=(hrData[obkKey]&&hrData[obkKey][dd])?hrData[obkKey][dd]:null;
+      if(!rec) continue;
       if(rec.status==='출근') workDays++;
       if(rec.status==='결근') offDays++;
       if(rec.status==='연차') vacDays++;
@@ -3665,7 +3694,8 @@ function hrDownloadExcel() {
       const dt=new Date(year,month-1,d);
       const dow=DAYS_KO[dt.getDay()];
       const dd=String(d).padStart(2,'0');
-      const rec=hrGetData('piana',year,month,dd);
+      const rec=(hrData[pianaKey]&&hrData[pianaKey][dd])?hrData[pianaKey][dd]:null;
+      if(!rec) continue;
       const sx=parseFloat(rec.steelx)||0;
       const yr=parseFloat(rec.yr)||0;
       const amt=sx*HR_RATES.steelx+yr*HR_RATES.yr;
@@ -3691,7 +3721,8 @@ function hrDownloadExcel() {
       const dt=new Date(year,month-1,d);
       const dow=DAYS_KO[dt.getDay()];
       const dd=String(d).padStart(2,'0');
-      const rec=hrGetData('obk',year,month,dd);
+      const dlObkKey='obk_'+year+'_'+String(month).padStart(2,'0');
+      const rec=(hrData[dlObkKey]&&hrData[dlObkKey][dd])?hrData[dlObkKey][dd]:{status:'',note:''};
       if(rec.status==='출근')wk++;
       if(rec.status==='결근')off++;
       if(rec.status==='연차')vac++;
