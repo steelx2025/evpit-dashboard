@@ -3285,26 +3285,35 @@ async function hrLoadFromSupabase() {
     const from  = year + '-' + String(month).padStart(2,'0') + '-01';
     const to    = year + '-' + String(month).padStart(2,'0') + '-31';
 
+    console.log('[HR] 로드 시작:', from, '~', to);
+
     const [pianaRes, obkRes] = await Promise.all([
       sb.from('hr_piana').select('*').gte('work_date', from).lte('work_date', to),
       sb.from('hr_obk').select('*').gte('work_date', from).lte('work_date', to),
     ]);
 
-    // hrData 캐시에 저장
+    console.log('[HR] piana 결과:', pianaRes.data?.length, '건', pianaRes.error || '');
+    console.log('[HR] obk 결과:', obkRes.data?.length, '건', obkRes.error || '');
+
+    // hrData 캐시 초기화 후 저장
+    const pianaKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
+    const obkKey   = 'obk_'   + year + '_' + String(month).padStart(2,'0');
+    hrData[pianaKey] = {};
+    hrData[obkKey]   = {};
+
     (pianaRes.data || []).forEach(r => {
-      const dd = r.work_date.slice(8, 10);
-      const key = 'piana_' + year + '_' + String(month).padStart(2,'0');
-      if (!hrData[key]) hrData[key] = {};
-      hrData[key][dd] = { steelx: r.steelx||'', yr: r.yr||'', note: r.note||'' };
+      const dd = String(r.work_date).slice(8, 10);
+      hrData[pianaKey][dd] = { steelx: r.steelx||'', yr: r.yr||'', note: r.note||'' };
+      console.log('[HR] piana 데이터:', dd, hrData[pianaKey][dd]);
     });
     (obkRes.data || []).forEach(r => {
-      const dd = r.work_date.slice(8, 10);
-      const key = 'obk_' + year + '_' + String(month).padStart(2,'0');
-      if (!hrData[key]) hrData[key] = {};
-      hrData[key][dd] = { status: r.status||'', note: r.note||'' };
+      const dd = String(r.work_date).slice(8, 10);
+      hrData[obkKey][dd] = { status: r.status||'', note: r.note||'' };
     });
+
+    console.log('[HR] 로드 완료. hrData:', JSON.stringify(hrData).slice(0,200));
   } catch(e) {
-    console.error('HR 로드 오류:', e);
+    console.error('[HR] 로드 오류:', e);
   }
 }
 
