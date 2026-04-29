@@ -3364,21 +3364,41 @@ async function hrSetData(emp, year, month, day, field, val) {
   }
   hrData[key][day][field] = val;
 
-  // 2. KPI 즉시 업데이트
-  hrUpdateKPI();
-
-  // 3. 합계 셀 즉시 업데이트 (피안나)
+  // 2. 피안나 - 해당 행 합계 + 전체 합계 즉시 업데이트
   if (emp === 'piana') {
     const rec = hrData[key][day];
     const sx = parseFloat(rec.steelx) || 0;
     const yr = parseFloat(rec.yr) || 0;
-    const total = sx * HR_RATES.steelx + yr * HR_RATES.yr;
+    const rowTotal = sx * HR_RATES.steelx + yr * HR_RATES.yr;
+
+    // 행 합계 업데이트
     const totalEl = document.getElementById('hr-total-' + day);
     if (totalEl) {
-      totalEl.textContent = total > 0 ? '₩' + total.toLocaleString() : '₩0';
-      totalEl.className = total > 0 ? 'amount-cell' : 'amount-cell zero';
+      totalEl.textContent = rowTotal > 0 ? '₩' + rowTotal.toLocaleString() : '₩0';
+      totalEl.className = rowTotal > 0 ? 'amount-cell' : 'amount-cell zero';
     }
+
+    // 전체 합계 행 다시 계산
+    const dim = new Date(year, month, 0).getDate();
+    let sumSx=0, sumYr=0, sumAmt=0;
+    for (let d=1; d<=dim; d++) {
+      const dd = String(d).padStart(2,'0');
+      const r = hrData[key][dd];
+      if (!r) continue;
+      sumSx  += parseFloat(r.steelx)||0;
+      sumYr  += parseFloat(r.yr)||0;
+      sumAmt += (parseFloat(r.steelx)||0)*HR_RATES.steelx + (parseFloat(r.yr)||0)*HR_RATES.yr;
+    }
+    const sxEl  = document.getElementById('piana-sum-sx');
+    const yrEl  = document.getElementById('piana-sum-yr');
+    const amtEl = document.getElementById('piana-sum-amt');
+    if (sxEl)  sxEl.textContent  = sumSx  + '공수';
+    if (yrEl)  yrEl.textContent  = sumYr  + '공수';
+    if (amtEl) amtEl.textContent = '₩' + sumAmt.toLocaleString();
   }
+
+  // 3. KPI 즉시 업데이트
+  hrUpdateKPI();
 
   // 4. Supabase DB 저장
   const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + day;
@@ -3386,10 +3406,7 @@ async function hrSetData(emp, year, month, day, field, val) {
   const recToSave = Object.assign({ work_date: dateStr }, hrData[key][day]);
   try {
     const { error } = await sb.from(table).upsert(recToSave, { onConflict: 'work_date' });
-    if (error) {
-      console.error('HR 저장 오류:', error);
-      showToast('⚠️ 저장 실패: ' + error.message);
-    }
+    if (error) console.error('HR 저장 오류:', error);
   } catch(e) {
     console.error('HR 저장 예외:', e);
   }
