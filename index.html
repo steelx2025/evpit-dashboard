@@ -3608,9 +3608,9 @@ function hrRenderOBK(year, month, dim, today) {
   }
 
   // 합계
-  rows+=`<tr class="sum-row">
+  rows+=`<tr class="sum-row" id="obk-sum-row">
     <td>합계</td>
-    <td>출근 ${workDays}일 / 결근 ${offDays}일 / 연차 ${vacDays}일</td>
+    <td id="obk-sum-txt">출근 ${workDays}일 / 결근 ${offDays}일 / 연차 ${vacDays}일</td>
     <td></td>
   </tr>`;
 
@@ -3892,6 +3892,21 @@ async function hrSetOBKStatus(year, month, dd, status, el) {
         '</div>';
     }
   }
+
+  // 공장장 합계 행 즉시 업데이트
+  const obkSumKey = 'obk_' + year + '_' + String(month).padStart(2,'0');
+  const obkDim = new Date(year, month, 0).getDate();
+  let wkCnt=0, offCnt=0, vacCnt=0;
+  for (let d=1; d<=obkDim; d++) {
+    const ddd = String(d).padStart(2,'0');
+    const r = hrData[obkSumKey] && hrData[obkSumKey][ddd];
+    if (!r) continue;
+    if (r.status==='출근') wkCnt++;
+    if (r.status==='결근') offCnt++;
+    if (r.status==='연차') vacCnt++;
+  }
+  const obkSumEl = document.getElementById('obk-sum-txt');
+  if (obkSumEl) obkSumEl.textContent = '출근 '+wkCnt+'일 / 결근 '+offCnt+'일 / 연차 '+vacCnt+'일';
 
   hrUpdateKPI();
 
