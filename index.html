@@ -24,7 +24,7 @@ body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;
 
 /* KPI */
 .kpi-section{padding:1.25rem 2rem 0}
-.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .kpi-card{background:#fff;border-radius:12px;padding:1rem 1.125rem;cursor:pointer;border:1.5px solid transparent;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .kpi-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .kpi-card.active{border-color:#1a1a1a}
@@ -3586,6 +3586,7 @@ let hrYear  = 2026;
 let hrMonth = 4; // 1-based
 
 async function initHR() {
+  await hrLoadFromSupabase();
   hrRender();
 }
 
@@ -3598,15 +3599,14 @@ async function hrLoadFromSupabase() {
     const lastDay = new Date(year, month, 0).getDate();
     const to    = year + '-' + String(month).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
 
-    console.log('[HR] 로드 시작:', from, '~', to);
+
 
     const [pianaRes, obkRes] = await Promise.all([
       sb.from('hr_piana').select('*').order('work_date'),
       sb.from('hr_obk').select('*').order('work_date'),
     ]);
 
-    console.log('[HR] piana 결과:', pianaRes.data?.length, '건', pianaRes.error || '');
-    console.log('[HR] obk 결과:', obkRes.data?.length, '건', obkRes.error || '');
+
 
     // 전체 데이터를 hrData 캐시에 저장 (모든 월)
     (pianaRes.data || []).forEach(r => {
@@ -3628,8 +3628,7 @@ async function hrLoadFromSupabase() {
       hrData[k][dd] = { status: r.status||'', note: r.note||'' };
     });
 
-    const pianaKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
-    console.log('[HR] 로드 후 이번달 데이터:', hrData[pianaKey]);
+
 
     console.log('[HR] 로드 완료. hrData:', JSON.stringify(hrData).slice(0,200));
   } catch(e) {
@@ -3732,8 +3731,7 @@ function hrLoadFromStorage() {
 }
 
 async function hrRender() {
-  // 항상 DB에서 최신 데이터 로드 후 렌더링
-  await hrLoadFromSupabase();
+  // DB 로드는 initHR/월이동/직원변경 시에만, 여기선 캐시 사용
   const year = hrYear, month = hrMonth;
   document.getElementById('hr-month-label').textContent = year + '년 ' + month + '월';
 
