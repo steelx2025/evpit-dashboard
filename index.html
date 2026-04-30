@@ -2857,11 +2857,11 @@ document.addEventListener('keydown', function(e) {
     </div>
     <div class="supply-form-row">
       <div class="supply-form-field">
-        <label class="supply-form-label" style="display:flex;align-items:center;justify-content:space-between">
-          가스 종류 *
-          <button onclick="openAddGasType()" style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid #14b8a6;background:transparent;color:#14b8a6;cursor:pointer;font-weight:600">＋ 추가</button>
-        </label>
-        <select class="supply-form-select" id="supply-type"></select>
+        <label class="supply-form-label">가스 종류 *</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="supply-form-select" id="supply-type" style="flex:1"></select>
+          <button onclick="openAddGasType()" style="height:38px;padding:0 12px;border-radius:8px;border:1.5px solid #14b8a6;background:transparent;color:#14b8a6;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;flex-shrink:0">＋ 추가</button>
+        </div>
       </div>
       <div class="supply-form-field">
         <label class="supply-form-label">수량 (개) *</label>
