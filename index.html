@@ -2857,19 +2857,23 @@ document.addEventListener('keydown', function(e) {
     </div>
     <div class="supply-form-row">
       <div class="supply-form-field">
-        <label class="supply-form-label">가스 종류 *</label>
-        <select class="supply-form-select" id="supply-type">
-          <option value="">선택</option>
-          <option value="CO2">🔵 CO₂</option>
-          <option value="알곤">🟣 알곤</option>
-          <option value="혼합">🟢 혼합</option>
-          <option value="LPG">🟡 LPG</option>
-          <option value="산소">🔴 산소</option>
-        </select>
+        <label class="supply-form-label" style="display:flex;align-items:center;justify-content:space-between">
+          가스 종류 *
+          <button onclick="openAddGasType()" style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid #14b8a6;background:transparent;color:#14b8a6;cursor:pointer;font-weight:600">＋ 추가</button>
+        </label>
+        <select class="supply-form-select" id="supply-type"></select>
       </div>
       <div class="supply-form-field">
         <label class="supply-form-label">수량 (개) *</label>
         <input class="supply-form-input" type="number" id="supply-qty" min="1" placeholder="예) 3">
+      </div>
+    </div>
+    <!-- 가스 종류 추가 인라인 -->
+    <div id="add-gas-wrap" style="display:none;margin-top:-8px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="supply-form-input" id="new-gas-name" type="text" placeholder="새 가스 종류 입력 (예: 아세틸렌)" style="flex:1">
+        <button onclick="confirmAddGasType()" style="padding:10px 14px;background:#14b8a6;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">추가</button>
+        <button onclick="closeAddGasType()" style="padding:10px 14px;background:#f5f5f5;color:#666;border:none;border-radius:8px;font-size:12px;cursor:pointer">취소</button>
       </div>
     </div>
     <div class="supply-form-field">
@@ -4288,14 +4292,17 @@ function supplyRender() {
   const monthStr = supplyYear + '-' + String(supplyMonth).padStart(2,'0');
   const filtered = supplyData.filter(r => r.req_date && r.req_date.startsWith(monthStr));
 
-  // KPI 업데이트
-  const totals = { CO2:0, 알곤:0, 혼합:0, LPG:0, 산소:0 };
+  // KPI 업데이트 (동적 가스 목록)
+  const gasTypes = getGasTypes();
+  const totals = {};
+  gasTypes.forEach(t => totals[t] = 0);
   filtered.forEach(r => { if (totals[r.gas_type] !== undefined) totals[r.gas_type] += r.qty || 0; });
-  document.getElementById('kpi-co2').textContent    = totals['CO2'];
-  document.getElementById('kpi-argon').textContent  = totals['알곤'];
-  document.getElementById('kpi-mixed').textContent  = totals['혼합'];
-  document.getElementById('kpi-lpg').textContent    = totals['LPG'];
-  document.getElementById('kpi-oxygen').textContent = totals['산소'];
+  // KPI 카드 재렌더링
+  updateSupplyKPICards();
+  gasTypes.forEach((t, i) => {
+    const el = document.getElementById('kpi-gas-' + i);
+    if (el) el.textContent = totals[t] || 0;
+  });
 
   // 테이블 렌더링
   if (filtered.length === 0) {
@@ -4339,6 +4346,7 @@ function openSupplyModal() {
   const m = String(today.getMonth()+1).padStart(2,'0');
   const d = String(today.getDate()).padStart(2,'0');
   document.getElementById('supply-date').value = y+'-'+m+'-'+d;
+  renderGasTypeSelect();
   document.getElementById('supply-type').value = '';
   document.getElementById('supply-qty').value  = '';
   document.getElementById('supply-note').value = '';
@@ -4451,6 +4459,79 @@ function supplyDownloadExcel() {
   const ds = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
   XLSX.writeFile(wb, 'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');
   showToast('📥 엑셀 다운로드 완료!');
+}
+
+
+// ── 가스 종류 동적 관리 ───────────────────────────────
+// 기본 가스 목록 (localStorage에 저장)
+function getGasTypes() {
+  try {
+    const saved = localStorage.getItem('sx_gasTypes');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return ['CO2','알곤','혼합','LPG','산소'];
+}
+
+function saveGasTypes(types) {
+  try { localStorage.setItem('sx_gasTypes', JSON.stringify(types)); } catch(e) {}
+}
+
+const GAS_ICONS_MAP = {
+  'CO2':'🔵', '알곤':'🟣', '혼합':'🟢', 'LPG':'🟡', '산소':'🔴'
+};
+function getGasIcon(name) {
+  return GAS_ICONS_MAP[name] || '⚪';
+}
+
+function renderGasTypeSelect() {
+  const sel = document.getElementById('supply-type');
+  if (!sel) return;
+  const types = getGasTypes();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">선택</option>' +
+    types.map(t => `<option value="${t}" ${cur===t?'selected':''}>${getGasIcon(t)} ${t}</option>`).join('');
+}
+
+function openAddGasType() {
+  document.getElementById('add-gas-wrap').style.display = 'block';
+  document.getElementById('new-gas-name').value = '';
+  document.getElementById('new-gas-name').focus();
+}
+
+function closeAddGasType() {
+  document.getElementById('add-gas-wrap').style.display = 'none';
+}
+
+function confirmAddGasType() {
+  const name = document.getElementById('new-gas-name').value.trim();
+  if (!name) { alert('가스 종류 이름을 입력해주세요.'); return; }
+  const types = getGasTypes();
+  if (types.includes(name)) { alert('이미 존재하는 가스 종류예요.'); return; }
+  types.push(name);
+  saveGasTypes(types);
+  // KPI 카드도 업데이트
+  updateSupplyKPICards();
+  renderGasTypeSelect();
+  document.getElementById('supply-type').value = name;
+  closeAddGasType();
+  showToast('✅ ' + name + ' 추가됐어요!');
+}
+
+function updateSupplyKPICards() {
+  const types = getGasTypes();
+  const colors = ['co2','argon','mixed','lpg','oxygen'];
+  const kpiRow = document.getElementById('supply-kpi-row');
+  if (!kpiRow) return;
+  kpiRow.innerHTML = types.map((t, i) => {
+    const cls = colors[i] || 'co2';
+    const id  = 'kpi-gas-' + i;
+    return `<div class="supply-kpi ${cls}">
+      <div class="supply-kpi-icon">${getGasIcon(t)}</div>
+      <div class="supply-kpi-label">${t}</div>
+      <div class="supply-kpi-value" id="${id}">0</div>
+      <div class="supply-kpi-unit">개</div>
+    </div>`;
+  }).join('');
 }
 
 </script>
