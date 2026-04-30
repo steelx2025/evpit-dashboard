@@ -1421,8 +1421,8 @@ table.hr-tbl tr.sum-row td {
 }
 .supply-kpi {
   background:#fff; border-radius:14px;
-  padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
-  border-top:3px solid #e0e0e0;
+  padding:24px 20px; box-shadow:0 2px 8px rgba(0,0,0,.08);
+  border-top:4px solid #e0e0e0;
   transition:transform .15s;
 }
 .supply-kpi:hover { transform:translateY(-2px); }
@@ -1432,9 +1432,9 @@ table.hr-tbl tr.sum-row td {
 .supply-kpi.lpg   { border-color:#f59e0b; }
 .supply-kpi.oxygen{ border-color:#ef4444; }
 .supply-kpi-icon  { font-size:22px; margin-bottom:8px; }
-.supply-kpi-label { font-size:11px; color:#999; margin-bottom:4px; font-weight:500; }
-.supply-kpi-value { font-size:24px; font-weight:700; color:#1a1a1a; }
-.supply-kpi-unit  { font-size:11px; color:#999; margin-top:2px; }
+.supply-kpi-label { font-size:13px; color:#666; margin-bottom:6px; font-weight:600; }
+.supply-kpi-value { font-size:42px; font-weight:800; color:#1a1a1a; line-height:1.1; }
+.supply-kpi-unit  { font-size:13px; color:#999; margin-top:4px; font-weight:500; }
 
 /* 등록 패널 */
 .supply-add-btn {
@@ -1505,10 +1505,11 @@ table.supply-tbl tr.sum-row td {
   margin-bottom:6px;
 }
 .supply-form-input, .supply-form-select {
-  width:100%; padding:10px 12px; border:1px solid #e0e0e0;
+  width:100%; padding:10px 32px 10px 12px; border:1px solid #e0e0e0;
   border-radius:8px; font-size:13px; color:#1a1a1a;
   background:#fff; outline:none; font-family:inherit;
   transition:border-color .15s;
+  appearance:auto; -webkit-appearance:auto;
 }
 .supply-form-input:focus, .supply-form-select:focus {
   border-color:#14b8a6;
@@ -2831,12 +2832,12 @@ document.addEventListener('keydown', function(e) {
           <table class="supply-tbl">
             <thead>
               <tr>
-                <th style="min-width:50px">No</th>
-                <th style="min-width:110px">신청일</th>
-                <th style="min-width:90px">가스 종류</th>
-                <th style="min-width:70px">수량</th>
-                <th style="min-width:180px;text-align:left">비고</th>
-                <th style="min-width:50px">삭제</th>
+                <th style="min-width:40px;width:40px">No</th>
+                <th style="min-width:100px">신청일</th>
+                <th style="min-width:120px">가스 종류</th>
+                <th style="min-width:80px">수량</th>
+                <th style="min-width:160px;text-align:left">비고</th>
+                <th style="min-width:44px">삭제</th>
               </tr>
             </thead>
             <tbody id="supply-tbody"></tbody>
@@ -4311,32 +4312,70 @@ function supplyRender() {
   // 테이블 렌더링
   if (filtered.length === 0) {
     document.getElementById('supply-tbody').innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#999">이번 달 신청 내역이 없어요</td></tr>';
+      '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';
     return;
   }
 
-  let rows = '';
-  filtered.forEach((r, i) => {
-    const cls = GAS_CSS[r.gas_type] || '';
-    const icon = GAS_ICON[r.gas_type] || '';
-    const dateStr = r.req_date ? r.req_date.slice(0,10) : '';
-    const dateFmt = dateStr ? dateStr.replace(/-/g, '.') : '-';
-    rows += `<tr>
-      <td style="color:#999;font-size:12px">${i+1}</td>
-      <td style="font-weight:500">${dateFmt}</td>
-      <td><span class="gas-badge gas-${cls}">${icon} ${r.gas_type}</span></td>
-      <td><strong>${r.qty}</strong> 개</td>
-      <td style="text-align:left;color:#666">${r.note || '-'}</td>
-      <td><button class="del-btn" onclick="openSupplyDelModal(${r.id},'${r.gas_type}',${r.qty})">✕</button></td>
-    </tr>`;
+  // 날짜별로 그룹핑
+  const grouped = {};
+  filtered.forEach(r => {
+    const d = r.req_date ? r.req_date.slice(0,10) : '미정';
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(r);
   });
 
-  // 합계 행
-  const totalQty = filtered.reduce((s,r) => s + (r.qty||0), 0);
+  // 날짜 정렬 (최신순)
+  const sortedDates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+
+  let rows = '';
+  let totalQty = 0;
+  let rowNum = 1;
+
+  sortedDates.forEach(date => {
+    const items = grouped[date];
+    const dayTotal = items.reduce((s,r) => s+(r.qty||0), 0);
+    const dt = new Date(date);
+    const days = ['일','월','화','수','목','금','토'];
+    const dayStr = date.replace(/-/g,'.') + ' (' + days[dt.getDay()] + ')';
+    const isWeekend = dt.getDay()===0||dt.getDay()===6;
+
+    // 날짜 구분 헤더
+    rows += `<tr style="background:${isWeekend?'#fff5f5':'#f8f9fa'};border-top:2px solid #e5e5e5">
+      <td colspan="6" style="padding:8px 16px;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:700;font-size:13px;color:${isWeekend?'#E24B4A':'#1a1a1a'}">${dayStr}</span>
+          <span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">${dayTotal}개</strong></span>
+        </div>
+      </td>
+    </tr>`;
+
+    // 해당 날짜 항목들
+    items.forEach(r => {
+      const cls = GAS_CSS[r.gas_type] || '';
+      const icon = GAS_ICON[r.gas_type] || getGasIcon(r.gas_type);
+      totalQty += r.qty||0;
+      rows += `<tr style="background:#fff">
+        <td style="color:#bbb;font-size:11px;width:40px">${rowNum++}</td>
+        <td style="color:#999;font-size:12px"></td>
+        <td><span class="gas-badge gas-${cls}" style="font-size:13px;padding:4px 14px">${icon} ${r.gas_type}</span></td>
+        <td style="font-size:16px;font-weight:800;color:#1a1a1a">${r.qty}<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>
+        <td style="text-align:left;color:#888;font-size:12px">${r.note || ''}</td>
+        <td><button class="del-btn" onclick="openSupplyDelModal(${r.id},'${r.gas_type}',${r.qty})">✕</button></td>
+      </tr>`;
+    });
+  });
+
+  // 월 합계 행
+  const gasTypes2 = getGasTypes();
+  const typeTotals = {};
+  gasTypes2.forEach(t => typeTotals[t]=0);
+  filtered.forEach(r => { if(typeTotals[r.gas_type]!==undefined) typeTotals[r.gas_type]+=r.qty||0; });
+  const typeSum = gasTypes2.filter(t=>typeTotals[t]>0).map(t=>`${getGasIcon(t)} ${t}: ${typeTotals[t]}개`).join('  |  ');
+
   rows += `<tr class="sum-row">
-    <td colspan="3">합계</td>
-    <td>${totalQty} 개</td>
-    <td colspan="2"></td>
+    <td colspan="2" style="text-align:left;padding-left:16px">월 합계</td>
+    <td colspan="2" style="font-size:15px">${totalQty} 개</td>
+    <td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">${typeSum}</td>
   </tr>`;
 
   document.getElementById('supply-tbody').innerHTML = rows;
