@@ -24,7 +24,7 @@ body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#1a1a1a;
 
 /* KPI */
 .kpi-section{padding:1.25rem 2rem 0}
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .kpi-card{background:#fff;border-radius:12px;padding:1rem 1.125rem;cursor:pointer;border:1.5px solid transparent;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .kpi-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .kpi-card.active{border-color:#1a1a1a}
@@ -747,10 +747,10 @@ tr:hover td{background:#fafafa}
 /* 카드 그리드 */
 .hub-grid{
   display:grid;
-  grid-template-columns:repeat(5,1fr);
+  grid-template-columns:repeat(3,1fr);
   gap:20px;
   width:100%;
-  max-width:1400px;
+  max-width:960px;
 }
 .hub-card{
   background:rgba(255,255,255,.04);
@@ -788,6 +788,12 @@ tr:hover td{background:#fafafa}
 }
 .hub-card-cal:hover{ border-color:rgba(0,153,255,.3); }
 .hub-card-cal .hub-card-icon{ background:linear-gradient(135deg,#0099ff,#0066cc); }
+
+.hub-card-supply::before{
+  background:linear-gradient(135deg,rgba(20,184,166,.06) 0%,transparent 60%);
+}
+.hub-card-supply:hover{ border-color:rgba(20,184,166,.3); }
+.hub-card-supply .hub-card-icon{ background:linear-gradient(135deg,#14b8a6,#0d9488); }
 
 .hub-card-tax::before{
   background:linear-gradient(135deg,rgba(234,179,8,.06) 0%,transparent 60%);
@@ -1376,6 +1382,156 @@ table.hr-tbl tr.sum-row td {
   white-space:nowrap;
 }
 
+
+/* ══════════════════════════════════
+   소모품 관리 — 가스 내역
+══════════════════════════════════ */
+.supply-wrap {
+  background:#f5f5f7; min-height:calc(100vh - 52px);
+  padding:24px 2rem;
+}
+
+/* 서브 메뉴 */
+.supply-menu {
+  display:flex; gap:0; background:#fff;
+  border-radius:12px; margin-bottom:24px;
+  padding:6px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+  width:fit-content;
+}
+.supply-menu-btn {
+  padding:8px 22px; border-radius:8px; border:none;
+  background:transparent; font-size:13px; font-weight:500;
+  color:#999; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; gap:6px;
+}
+.supply-menu-btn.on { background:#1a1a1a; color:#fff; }
+
+/* KPI 카드 */
+.supply-kpi-row {
+  display:grid; grid-template-columns:repeat(5,1fr);
+  gap:12px; margin-bottom:24px;
+}
+.supply-kpi {
+  background:#fff; border-radius:14px;
+  padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,.06);
+  border-top:3px solid #e0e0e0;
+  transition:transform .15s;
+}
+.supply-kpi:hover { transform:translateY(-2px); }
+.supply-kpi.co2   { border-color:#3b82f6; }
+.supply-kpi.argon { border-color:#8b5cf6; }
+.supply-kpi.mixed { border-color:#10b981; }
+.supply-kpi.lpg   { border-color:#f59e0b; }
+.supply-kpi.oxygen{ border-color:#ef4444; }
+.supply-kpi-icon  { font-size:22px; margin-bottom:8px; }
+.supply-kpi-label { font-size:11px; color:#999; margin-bottom:4px; font-weight:500; }
+.supply-kpi-value { font-size:24px; font-weight:700; color:#1a1a1a; }
+.supply-kpi-unit  { font-size:11px; color:#999; margin-top:2px; }
+
+/* 등록 패널 */
+.supply-add-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 18px; border-radius:20px;
+  background:#14b8a6; color:#fff; border:none;
+  font-size:13px; font-weight:600; cursor:pointer;
+  transition:all .15s; margin-bottom:20px;
+}
+.supply-add-btn:hover { background:#0d9488; transform:translateY(-1px); }
+
+/* 내역 테이블 */
+.supply-table-wrap {
+  background:#fff; border-radius:14px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden;
+}
+.supply-table-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid #f0f0f0;
+}
+.supply-table-title { font-size:15px; font-weight:700; }
+table.supply-tbl { border-collapse:collapse; width:100%; }
+table.supply-tbl th {
+  padding:10px 14px; text-align:center;
+  font-size:11px; font-weight:600; color:#999;
+  background:#fafafa; border-bottom:1px solid #f0f0f0;
+}
+table.supply-tbl td {
+  padding:10px 14px; border-bottom:1px solid #f5f5f5;
+  text-align:center; font-size:13px; vertical-align:middle;
+}
+table.supply-tbl tr:last-child td { border-bottom:none; }
+table.supply-tbl tr:hover td { background:#fafafa; }
+table.supply-tbl tr.sum-row td {
+  background:#1a1a1a; color:#fff; font-weight:700;
+}
+
+/* 가스 뱃지 */
+.gas-badge {
+  display:inline-block; padding:3px 12px; border-radius:20px;
+  font-size:12px; font-weight:600;
+}
+.gas-co2    { background:#EFF6FF; color:#1d4ed8; }
+.gas-argon  { background:#F5F3FF; color:#6d28d9; }
+.gas-mixed  { background:#ECFDF5; color:#065f46; }
+.gas-lpg    { background:#FFFBEB; color:#92400e; }
+.gas-oxygen { background:#FEF2F2; color:#991b1b; }
+
+/* 등록 모달 */
+.supply-modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.4);
+  z-index:3000; display:none;
+  align-items:center; justify-content:center;
+}
+.supply-modal-overlay.open { display:flex; }
+.supply-modal {
+  background:#fff; border-radius:20px; padding:32px;
+  width:420px; box-shadow:0 24px 60px rgba(0,0,0,.2);
+}
+.supply-modal-title {
+  font-size:17px; font-weight:700; margin-bottom:24px;
+  display:flex; align-items:center; gap:8px;
+}
+.supply-form-field { margin-bottom:16px; }
+.supply-form-label {
+  display:block; font-size:11px; font-weight:600;
+  color:#666; letter-spacing:.05em; text-transform:uppercase;
+  margin-bottom:6px;
+}
+.supply-form-input, .supply-form-select {
+  width:100%; padding:10px 12px; border:1px solid #e0e0e0;
+  border-radius:8px; font-size:13px; color:#1a1a1a;
+  background:#fff; outline:none; font-family:inherit;
+  transition:border-color .15s;
+}
+.supply-form-input:focus, .supply-form-select:focus {
+  border-color:#14b8a6;
+}
+.supply-form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.supply-modal-btns { display:flex; gap:10px; margin-top:24px; }
+.supply-modal-cancel {
+  padding:11px 20px; background:#f5f5f5; color:#666;
+  border:none; border-radius:8px; font-size:13px; cursor:pointer;
+}
+.supply-modal-save {
+  flex:1; padding:11px; background:#14b8a6; color:#fff;
+  border:none; border-radius:8px; font-size:13px;
+  font-weight:700; cursor:pointer;
+}
+.supply-modal-save:hover { background:#0d9488; }
+
+/* 월 선택 */
+.supply-month-sel {
+  display:flex; align-items:center; gap:8px; margin-bottom:20px;
+}
+.supply-month-btn {
+  width:30px; height:30px; border-radius:50%;
+  border:1px solid #e0e0e0; background:#fff;
+  cursor:pointer; font-size:14px; color:#666;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+}
+.supply-month-btn:hover { background:#f5f5f5; }
+.supply-month-label { font-size:16px; font-weight:700; min-width:80px; text-align:center; }
+
 </style>
 </head>
 <body>
@@ -1623,6 +1779,15 @@ table.hr-tbl tr.sum-row td {
       <div class="hub-card-icon">💰</div>
       <div class="hub-card-title">세무·회계</div>
       <div class="hub-card-desc">AI 세무 상담, 국세청, 하나은행 통장·카드를 빠르게 연결합니다.</div>
+      <div class="hub-card-arrow">바로가기 →</div>
+    </div>
+
+    <!-- 소모품 관리 -->
+    <div class="hub-card hub-card-supply" onclick="goService('supply')">
+      <span class="hub-card-badge badge-live">● LIVE</span>
+      <div class="hub-card-icon">🔧</div>
+      <div class="hub-card-title">소모품 관리</div>
+      <div class="hub-card-desc">가스 사용량 등 공장 소모품 신청 내역을 월별로 관리합니다.</div>
       <div class="hub-card-arrow">바로가기 →</div>
     </div>
   </div>
@@ -2589,6 +2754,142 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 
+<!-- ★ 소모품 관리 서비스 ★ -->
+<div id="service-supply" style="display:none">
+  <div class="service-topbar">
+    <button class="service-back" onclick="backToHub()">← 허브로</button>
+    <div class="service-topbar-title">🔧 소모품 관리</div>
+  </div>
+  <div class="supply-wrap">
+
+    <!-- 서브 메뉴 -->
+    <div class="supply-menu">
+      <button class="supply-menu-btn on" onclick="supplySelectMenu('gas',this)">🔵 가스 내역</button>
+    </div>
+
+    <!-- 가스 내역 -->
+    <div id="supply-gas">
+      <!-- 월 선택 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div class="supply-month-sel">
+          <button class="supply-month-btn" onclick="supplyMonthMove(-1)">←</button>
+          <div class="supply-month-label" id="supply-month-label">2026년 4월</div>
+          <button class="supply-month-btn" onclick="supplyMonthMove(1)">→</button>
+        </div>
+        <button class="supply-add-btn" onclick="openSupplyModal()">＋ 가스 신청 등록</button>
+      </div>
+
+      <!-- KPI 카드 -->
+      <div class="supply-kpi-row" id="supply-kpi-row">
+        <div class="supply-kpi co2">
+          <div class="supply-kpi-icon">🔵</div>
+          <div class="supply-kpi-label">CO₂</div>
+          <div class="supply-kpi-value" id="kpi-co2">0</div>
+          <div class="supply-kpi-unit">개</div>
+        </div>
+        <div class="supply-kpi argon">
+          <div class="supply-kpi-icon">🟣</div>
+          <div class="supply-kpi-label">알곤</div>
+          <div class="supply-kpi-value" id="kpi-argon">0</div>
+          <div class="supply-kpi-unit">개</div>
+        </div>
+        <div class="supply-kpi mixed">
+          <div class="supply-kpi-icon">🟢</div>
+          <div class="supply-kpi-label">혼합</div>
+          <div class="supply-kpi-value" id="kpi-mixed">0</div>
+          <div class="supply-kpi-unit">개</div>
+        </div>
+        <div class="supply-kpi lpg">
+          <div class="supply-kpi-icon">🟡</div>
+          <div class="supply-kpi-label">LPG</div>
+          <div class="supply-kpi-value" id="kpi-lpg">0</div>
+          <div class="supply-kpi-unit">개</div>
+        </div>
+        <div class="supply-kpi oxygen">
+          <div class="supply-kpi-icon">🔴</div>
+          <div class="supply-kpi-label">산소</div>
+          <div class="supply-kpi-value" id="kpi-oxygen">0</div>
+          <div class="supply-kpi-unit">개</div>
+        </div>
+      </div>
+
+      <!-- 내역 테이블 -->
+      <div class="supply-table-wrap">
+        <div class="supply-table-header">
+          <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
+          <button class="hr-excel-btn" onclick="supplyDownloadExcel()">📥 엑셀 다운로드</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="supply-tbl">
+            <thead>
+              <tr>
+                <th style="min-width:50px">No</th>
+                <th style="min-width:110px">신청일</th>
+                <th style="min-width:90px">가스 종류</th>
+                <th style="min-width:70px">수량</th>
+                <th style="min-width:180px;text-align:left">비고</th>
+                <th style="min-width:50px">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="supply-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 가스 등록 모달 -->
+<div class="supply-modal-overlay" id="supply-modal">
+  <div class="supply-modal">
+    <div class="supply-modal-title">🔵 가스 신청 등록</div>
+    <div class="supply-form-field">
+      <label class="supply-form-label">신청 날짜 *</label>
+      <input class="supply-form-input" type="date" id="supply-date">
+    </div>
+    <div class="supply-form-row">
+      <div class="supply-form-field">
+        <label class="supply-form-label">가스 종류 *</label>
+        <select class="supply-form-select" id="supply-type">
+          <option value="">선택</option>
+          <option value="CO2">🔵 CO₂</option>
+          <option value="알곤">🟣 알곤</option>
+          <option value="혼합">🟢 혼합</option>
+          <option value="LPG">🟡 LPG</option>
+          <option value="산소">🔴 산소</option>
+        </select>
+      </div>
+      <div class="supply-form-field">
+        <label class="supply-form-label">수량 (개) *</label>
+        <input class="supply-form-input" type="number" id="supply-qty" min="1" placeholder="예) 3">
+      </div>
+    </div>
+    <div class="supply-form-field">
+      <label class="supply-form-label">비고</label>
+      <input class="supply-form-input" type="text" id="supply-note" placeholder="특이사항 입력">
+    </div>
+    <div class="supply-modal-btns">
+      <button class="supply-modal-cancel" onclick="closeSupplyModal()">취소</button>
+      <button class="supply-modal-save" onclick="saveSupplyItem()">💾 등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 가스 삭제 확인 모달 -->
+<div class="del-modal-overlay" id="supply-del-modal">
+  <div class="del-modal">
+    <div class="del-modal-icon">🗑️</div>
+    <div class="del-modal-title">항목을 삭제할까요?</div>
+    <div class="del-modal-desc" id="supply-del-desc">삭제하면 복구할 수 없습니다.</div>
+    <div class="del-modal-btns">
+      <button class="del-modal-cancel" onclick="closeSupplyDelModal()">취소</button>
+      <button class="del-modal-confirm" onclick="confirmSupplyDelete()">삭제</button>
+    </div>
+  </div>
+</div>
+
+
+
 <script>
 
 // ── STEELX 로그인 ──────────────────────────
@@ -2897,7 +3198,7 @@ async function toggleStep(no, key) {
 
 function goService(name) {
   document.getElementById('hub-screen').classList.remove('show');
-  ['pit','calendar','estimate','hr','tax'].forEach(function(n) {
+  ['pit','calendar','estimate','hr','tax','supply'].forEach(function(n) {
     document.getElementById('service-' + n).style.display = 'none';
   });
   if (name === 'pit') {
@@ -2923,6 +3224,10 @@ function goService(name) {
   } else if (name === 'tax') {
     document.getElementById('service-tax').style.display = 'block';
     saveSession('tax');
+  } else if (name === 'supply') {
+    document.getElementById('service-supply').style.display = 'block';
+    saveSession('supply');
+    initSupply();
   }
 }
 
@@ -3920,6 +4225,226 @@ async function hrSetOBKStatus(year, month, dd, status, el) {
     );
     showToast('저장됐어요 ✓');
   } catch(e) { console.error('OBK 저장 오류:', e); }
+}
+
+
+// ══════════════════════════════════════════════
+//  소모품 관리 — 가스 내역
+// ══════════════════════════════════════════════
+
+let supplyYear  = 2026;
+let supplyMonth = 4;
+let supplyData  = []; // 전체 가스 데이터
+let supplyDelId = null;
+
+const GAS_TYPES = ['CO2','알곤','혼합','LPG','산소'];
+const GAS_CSS   = { CO2:'co2', 알곤:'argon', 혼합:'mixed', LPG:'lpg', 산소:'oxygen' };
+const GAS_ICON  = { CO2:'🔵', 알곤:'🟣', 혼합:'🟢', LPG:'🟡', 산소:'🔴' };
+
+async function initSupply() {
+  // 오늘 날짜로 초기화
+  const today = new Date();
+  supplyYear  = today.getFullYear();
+  supplyMonth = today.getMonth() + 1;
+  await supplyLoadData();
+  supplyRender();
+}
+
+async function supplyLoadData() {
+  try {
+    const { data, error } = await sb.from('gas_records').select('*').order('req_date', { ascending: false });
+    if (error) throw error;
+    supplyData = data || [];
+  } catch(e) {
+    console.error('가스 데이터 로드 오류:', e);
+    supplyData = [];
+  }
+}
+
+function supplySelectMenu(menu, btn) {
+  document.querySelectorAll('.supply-menu-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function supplyMonthMove(dir) {
+  supplyMonth += dir;
+  if (supplyMonth > 12) { supplyMonth = 1; supplyYear++; }
+  if (supplyMonth < 1)  { supplyMonth = 12; supplyYear--; }
+  supplyRender();
+}
+
+function supplyRender() {
+  document.getElementById('supply-month-label').textContent = supplyYear + '년 ' + supplyMonth + '월';
+  document.getElementById('supply-table-title').textContent =
+    supplyYear + '년 ' + supplyMonth + '월 가스 신청 내역';
+
+  // 이번 달 데이터 필터
+  const monthStr = supplyYear + '-' + String(supplyMonth).padStart(2,'0');
+  const filtered = supplyData.filter(r => r.req_date && r.req_date.startsWith(monthStr));
+
+  // KPI 업데이트
+  const totals = { CO2:0, 알곤:0, 혼합:0, LPG:0, 산소:0 };
+  filtered.forEach(r => { if (totals[r.gas_type] !== undefined) totals[r.gas_type] += r.qty || 0; });
+  document.getElementById('kpi-co2').textContent    = totals['CO2'];
+  document.getElementById('kpi-argon').textContent  = totals['알곤'];
+  document.getElementById('kpi-mixed').textContent  = totals['혼합'];
+  document.getElementById('kpi-lpg').textContent    = totals['LPG'];
+  document.getElementById('kpi-oxygen').textContent = totals['산소'];
+
+  // 테이블 렌더링
+  if (filtered.length === 0) {
+    document.getElementById('supply-tbody').innerHTML =
+      '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#999">이번 달 신청 내역이 없어요</td></tr>';
+    return;
+  }
+
+  let rows = '';
+  filtered.forEach((r, i) => {
+    const cls = GAS_CSS[r.gas_type] || '';
+    const icon = GAS_ICON[r.gas_type] || '';
+    const dateStr = r.req_date ? r.req_date.slice(0,10) : '';
+    const dateFmt = dateStr ? dateStr.replace(/-/g, '.') : '-';
+    rows += `<tr>
+      <td style="color:#999;font-size:12px">${i+1}</td>
+      <td style="font-weight:500">${dateFmt}</td>
+      <td><span class="gas-badge gas-${cls}">${icon} ${r.gas_type}</span></td>
+      <td><strong>${r.qty}</strong> 개</td>
+      <td style="text-align:left;color:#666">${r.note || '-'}</td>
+      <td><button class="del-btn" onclick="openSupplyDelModal(${r.id},'${r.gas_type}',${r.qty})">✕</button></td>
+    </tr>`;
+  });
+
+  // 합계 행
+  const totalQty = filtered.reduce((s,r) => s + (r.qty||0), 0);
+  rows += `<tr class="sum-row">
+    <td colspan="3">합계</td>
+    <td>${totalQty} 개</td>
+    <td colspan="2"></td>
+  </tr>`;
+
+  document.getElementById('supply-tbody').innerHTML = rows;
+}
+
+// ── 모달 ────────────────────────────────────
+function openSupplyModal() {
+  // 오늘 날짜 기본값
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,'0');
+  const d = String(today.getDate()).padStart(2,'0');
+  document.getElementById('supply-date').value = y+'-'+m+'-'+d;
+  document.getElementById('supply-type').value = '';
+  document.getElementById('supply-qty').value  = '';
+  document.getElementById('supply-note').value = '';
+  document.getElementById('supply-modal').classList.add('open');
+}
+
+function closeSupplyModal() {
+  document.getElementById('supply-modal').classList.remove('open');
+}
+
+async function saveSupplyItem() {
+  const date = document.getElementById('supply-date').value;
+  const type = document.getElementById('supply-type').value;
+  const qty  = parseInt(document.getElementById('supply-qty').value);
+  const note = document.getElementById('supply-note').value.trim();
+
+  if (!date || !type || !qty || qty < 1) {
+    alert('날짜, 가스 종류, 수량은 필수 입력입니다.');
+    return;
+  }
+
+  const btn = document.querySelector('.supply-modal-save');
+  btn.textContent = '저장 중...';
+  btn.disabled = true;
+
+  try {
+    const { data, error } = await sb.from('gas_records').insert([{
+      req_date: date,
+      gas_type: type,
+      qty:      qty,
+      note:     note,
+    }]).select();
+    if (error) throw error;
+
+    supplyData.unshift(data[0]);
+    closeSupplyModal();
+
+    // 등록된 달로 이동
+    const parts = date.split('-');
+    supplyYear  = parseInt(parts[0]);
+    supplyMonth = parseInt(parts[1]);
+
+    supplyRender();
+    showToast('✅ 가스 신청이 등록됐어요!');
+  } catch(e) {
+    alert('등록 오류: ' + e.message);
+  } finally {
+    btn.textContent = '💾 등록하기';
+    btn.disabled = false;
+  }
+}
+
+// ── 삭제 ────────────────────────────────────
+function openSupplyDelModal(id, type, qty) {
+  supplyDelId = id;
+  document.getElementById('supply-del-desc').textContent =
+    type + ' ' + qty + '개 항목을 삭제하면 복구할 수 없습니다.';
+  document.getElementById('supply-del-modal').classList.add('open');
+}
+
+function closeSupplyDelModal() {
+  document.getElementById('supply-del-modal').classList.remove('open');
+  supplyDelId = null;
+}
+
+async function confirmSupplyDelete() {
+  if (!supplyDelId) return;
+  const id = supplyDelId;
+  closeSupplyDelModal();
+  try {
+    await sb.from('gas_records').delete().eq('id', id);
+    supplyData = supplyData.filter(r => r.id !== id);
+    supplyRender();
+    showToast('🗑️ 삭제됐어요');
+  } catch(e) {
+    alert('삭제 오류: ' + e.message);
+  }
+}
+
+// ── 엑셀 다운로드 ─────────────────────────────
+function supplyDownloadExcel() {
+  const monthStr = supplyYear + '-' + String(supplyMonth).padStart(2,'0');
+  const filtered = supplyData.filter(r => r.req_date && r.req_date.startsWith(monthStr));
+
+  if (filtered.length === 0) { alert('다운로드할 데이터가 없습니다.'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const headers = ['No','신청일','가스종류','수량(개)','비고'];
+  const rows = [headers];
+
+  filtered.forEach((r, i) => {
+    rows.push([
+      i+1,
+      r.req_date ? r.req_date.slice(0,10).replace(/-/g,'.') : '',
+      r.gas_type,
+      r.qty,
+      r.note || '',
+    ]);
+  });
+
+  // 합계
+  const total = filtered.reduce((s,r) => s+(r.qty||0), 0);
+  rows.push(['','','합계', total, '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:12},{wch:10},{wch:10},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, supplyYear+'년'+supplyMonth+'월_가스내역');
+
+  const today = new Date();
+  const ds = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, 'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');
+  showToast('📥 엑셀 다운로드 완료!');
 }
 
 </script>
