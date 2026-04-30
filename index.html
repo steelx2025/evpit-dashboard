@@ -733,15 +733,21 @@ tr:hover td{background:#fafafa}
 /* 허브 헤더 */
 .hub-header{
   display:flex;flex-direction:column;align-items:center;
-  margin-bottom:24px;
+  margin-bottom:12px;
 }
 .hub-logo{
   width:640px;margin-bottom:20px;
   mix-blend-mode:lighten;
 }
 .hub-welcome{
-  font-size:18px;font-weight:700;color:#ffffff;
-  letter-spacing:.15em;text-transform:uppercase;
+  font-size:14px;font-weight:500;color:rgba(255,255,255,.5);
+  letter-spacing:.3em;text-transform:uppercase;
+  display:flex;align-items:center;gap:16px;
+}
+.hub-welcome::before,.hub-welcome::after{
+  content:'';display:block;
+  width:48px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);
 }
 
 /* 카드 그리드 */
