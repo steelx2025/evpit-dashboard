@@ -2849,37 +2849,41 @@ document.addEventListener('keydown', function(e) {
 
 <!-- 가스 등록 모달 -->
 <div class="supply-modal-overlay" id="supply-modal">
-  <div class="supply-modal">
-    <div class="supply-modal-title">🔵 가스 신청 등록</div>
+  <div class="supply-modal" style="width:500px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="supply-modal-title" style="margin-bottom:0">🔵 가스 신청 등록</div>
+      <button onclick="closeSupplyModal()" style="width:28px;height:28px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:14px;color:#666">✕</button>
+    </div>
+
+    <!-- 신청 날짜 -->
     <div class="supply-form-field">
       <label class="supply-form-label">신청 날짜 *</label>
       <input class="supply-form-input" type="date" id="supply-date">
     </div>
-    <div class="supply-form-row">
-      <div class="supply-form-field">
-        <label class="supply-form-label">가스 종류 *</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select class="supply-form-select" id="supply-type" style="flex:1"></select>
-          <button onclick="openAddGasType()" style="height:38px;padding:0 12px;border-radius:8px;border:1.5px solid #14b8a6;background:transparent;color:#14b8a6;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;flex-shrink:0">＋ 추가</button>
-        </div>
-      </div>
-      <div class="supply-form-field">
-        <label class="supply-form-label">수량 (개) *</label>
-        <input class="supply-form-input" type="number" id="supply-qty" min="1" placeholder="예) 3">
-      </div>
+
+    <!-- 가스 항목 헤더 -->
+    <div style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:6px;padding:0 2px">
+      <div style="font-size:11px;font-weight:600;color:#999;letter-spacing:.05em;text-transform:uppercase">가스 종류 *</div>
+      <div style="font-size:11px;font-weight:600;color:#999;letter-spacing:.05em;text-transform:uppercase">수량 (개) *</div>
+      <div></div>
     </div>
-    <!-- 가스 종류 추가 인라인 -->
-    <div id="add-gas-wrap" style="display:none;margin-top:-8px;margin-bottom:8px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <input class="supply-form-input" id="new-gas-name" type="text" placeholder="새 가스 종류 입력 (예: 아세틸렌)" style="flex:1">
-        <button onclick="confirmAddGasType()" style="padding:10px 14px;background:#14b8a6;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">추가</button>
-        <button onclick="closeAddGasType()" style="padding:10px 14px;background:#f5f5f5;color:#666;border:none;border-radius:8px;font-size:12px;cursor:pointer">취소</button>
-      </div>
-    </div>
+
+    <!-- 가스 항목 목록 -->
+    <div id="gas-items-list"></div>
+
+    <!-- 항목 추가 버튼 -->
+    <button onclick="addGasRow()" style="width:100%;padding:10px;border:1.5px dashed #e0e0e0;border-radius:8px;background:transparent;color:#14b8a6;font-size:13px;font-weight:600;cursor:pointer;margin:8px 0 16px;transition:all .15s"
+      onmouseover="this.style.borderColor='#14b8a6';this.style.background='#f0fdfa'"
+      onmouseout="this.style.borderColor='#e0e0e0';this.style.background='transparent'">
+      ＋ 가스 항목 추가
+    </button>
+
+    <!-- 비고 -->
     <div class="supply-form-field">
       <label class="supply-form-label">비고</label>
       <input class="supply-form-input" type="text" id="supply-note" placeholder="특이사항 입력">
     </div>
+
     <div class="supply-modal-btns">
       <button class="supply-modal-cancel" onclick="closeSupplyModal()">취소</button>
       <button class="supply-modal-save" onclick="saveSupplyItem()">💾 등록하기</button>
@@ -4532,6 +4536,109 @@ function updateSupplyKPICards() {
       <div class="supply-kpi-unit">개</div>
     </div>`;
   }).join('');
+}
+
+
+// ── 가스 항목 동적 추가/삭제 ──────────────────────────
+let gasRowCount = 0;
+
+function renderGasRow(idx) {
+  const types = getGasTypes();
+  const opts = types.map(t => `<option value="${t}">${getGasIcon(t)} ${t}</option>`).join('');
+  return `<div id="gas-row-${idx}" style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center">
+    <select class="supply-form-select" id="gas-type-${idx}" style="height:40px">
+      <option value="">선택</option>${opts}
+    </select>
+    <input class="supply-form-input" type="number" id="gas-qty-${idx}" min="1" placeholder="수량" style="height:40px;text-align:center">
+    <button onclick="removeGasRow(${idx})" style="width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s"
+      onmouseover="this.style.background='#FCEBEB';this.style.borderColor='#ff9090';this.style.color='#E24B4A'"
+      onmouseout="this.style.background='#fff';this.style.borderColor='#e0e0e0';this.style.color='#ccc'">✕</button>
+  </div>`;
+}
+
+function addGasRow() {
+  const list = document.getElementById('gas-items-list');
+  if (!list) return;
+  const idx = gasRowCount++;
+  const div = document.createElement('div');
+  div.innerHTML = renderGasRow(idx);
+  list.appendChild(div.firstElementChild);
+}
+
+function removeGasRow(idx) {
+  const row = document.getElementById('gas-row-' + idx);
+  if (row) row.remove();
+  // 최소 1개 유지
+  const list = document.getElementById('gas-items-list');
+  if (list && list.children.length === 0) addGasRow();
+}
+
+// openSupplyModal 재정의
+function openSupplyModal() {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,'0');
+  const d = String(today.getDate()).padStart(2,'0');
+  document.getElementById('supply-date').value = y+'-'+m+'-'+d;
+  document.getElementById('supply-note').value = '';
+
+  // 가스 항목 초기화 - 1개로 시작
+  gasRowCount = 0;
+  const list = document.getElementById('gas-items-list');
+  if (list) list.innerHTML = '';
+  addGasRow();
+
+  document.getElementById('supply-modal').classList.add('open');
+}
+
+// saveSupplyItem 재정의 - 여러 항목 한번에 저장
+async function saveSupplyItem() {
+  const date = document.getElementById('supply-date').value;
+  const note = document.getElementById('supply-note').value.trim();
+
+  if (!date) { alert('신청 날짜를 입력해주세요.'); return; }
+
+  // 모든 가스 항목 수집
+  const list = document.getElementById('gas-items-list');
+  const rows = list ? list.querySelectorAll('[id^="gas-row-"]') : [];
+  const items = [];
+
+  for (const row of rows) {
+    const idx = row.id.replace('gas-row-','');
+    const type = document.getElementById('gas-type-' + idx)?.value;
+    const qty  = parseInt(document.getElementById('gas-qty-'  + idx)?.value);
+    if (!type || !qty || qty < 1) continue;
+    items.push({ req_date: date, gas_type: type, qty, note });
+  }
+
+  if (items.length === 0) {
+    alert('가스 종류와 수량을 입력해주세요.');
+    return;
+  }
+
+  const btn = document.querySelector('.supply-modal-save');
+  btn.textContent = '저장 중...';
+  btn.disabled = true;
+
+  try {
+    const { data, error } = await sb.from('gas_records').insert(items).select();
+    if (error) throw error;
+
+    data.forEach(d => supplyData.unshift(d));
+    closeSupplyModal();
+
+    const parts = date.split('-');
+    supplyYear  = parseInt(parts[0]);
+    supplyMonth = parseInt(parts[1]);
+
+    supplyRender();
+    showToast('✅ ' + items.length + '건 등록됐어요!');
+  } catch(e) {
+    alert('등록 오류: ' + e.message);
+  } finally {
+    btn.textContent = '💾 등록하기';
+    btn.disabled = false;
+  }
 }
 
 </script>
