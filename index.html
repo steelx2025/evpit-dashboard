@@ -2998,15 +2998,17 @@ function updateSupplyKPICards(){
 }
 
 function supplyRender(){
-  document.getElementById('supply-month-label').textContent=supplyYear+'년 '+supplyMonth+'월';
-  document.getElementById('supply-table-title').textContent=supplyYear+'년 '+supplyMonth+'월 가스 신청 내역';
+  var mlEl=document.getElementById('supply-month-label');
+  var ttEl=document.getElementById('supply-table-title');
+  if(mlEl) mlEl.textContent=supplyYear+'년 '+supplyMonth+'월';
+  if(ttEl) ttEl.textContent=supplyYear+'년 '+supplyMonth+'월 가스 신청 내역';
   var monthStr=supplyYear+'-'+String(supplyMonth).padStart(2,'0');
   var filtered=supplyData.filter(function(r){return r.req_date&&r.req_date.startsWith(monthStr);});
   var gasTypes=getGasTypes();var totals={};gasTypes.forEach(function(t){totals[t]=0;});
   filtered.forEach(function(r){if(totals[r.gas_type]!==undefined)totals[r.gas_type]+=r.qty||0;});
   updateSupplyKPICards();
   gasTypes.forEach(function(t,i){var el=document.getElementById('kpi-gas-'+i);if(el)el.textContent=totals[t]||0;});
-  if(filtered.length===0){document.getElementById('supply-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
+  if(filtered.length===0){var tbEl=document.getElementById('supply-tbody');if(!tbEl)return;tbEl.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
   var grouped={};filtered.forEach(function(r){var d=r.req_date?r.req_date.slice(0,10):'미정';if(!grouped[d])grouped[d]=[];grouped[d].push(r);});
   var sortedDates=Object.keys(grouped).sort(function(a,b){return b.localeCompare(a);});
   var rows='';var totalQty=0;var rowNum=1;
@@ -3031,7 +3033,7 @@ function supplyRender(){
   });
   var typeSum=gasTypes.filter(function(t){return totals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+totals[t]+'개';}).join('  |  ');
   rows+='<tr class="sum-row"><td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td></tr>';
-  document.getElementById('supply-tbody').innerHTML=rows;
+  var tbEl2=document.getElementById('supply-tbody');if(tbEl2)tbEl2.innerHTML=rows;
 }
 
 function renderGasTypeSelect(){
