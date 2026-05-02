@@ -3241,6 +3241,63 @@ function openSupplyDelModalEl(btn) {
   openSupplyDelModal(parseInt(btn.dataset.id), btn.dataset.type, parseInt(btn.dataset.qty));
 }
 
+
+// ── 출하 상태 체크 ────────────────────────────────────
+function shipCheckHtml(d) {
+  if (d.p_ship === '완료') {
+    return '<div class="ship-check-wrap" onclick="toggleShipDone('+d.no+')" title="클릭하면 출하대기로 변경"><div class="ship-checkbox checked">✓</div><span class="ship-label checked">출하완료</span></div>';
+  } else if (d.p_ship === '출하대기') {
+    return '<div class="ship-check-wrap" onclick="toggleShipDone('+d.no+')" title="클릭하면 출하완료 처리"><div class="ship-checkbox waiting">대기</div><span class="ship-label waiting">출하대기</span></div>';
+  } else if (isMfg(d)) {
+    return '<span class="pill p-mfg">제작중</span>';
+  } else {
+    var st = getStatus(d);
+    return '<span class="pill '+st.cls+'">'+st.label+'</span>';
+  }
+}
+
+
+
+// ── 공정단계 토글 ──────────────────────────────────────
+async function toggleStep(no, key) {
+  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
+  stepState[no][key] = !stepState[no][key];
+  var s = stepState[no];
+  var d = D.find(function(x){ return x.no === no; });
+  var allDone  = s.pre && s.bp && s.sp && s.weld;
+  var anyDone  = s.pre || s.bp || s.sp || s.weld;
+  if (d && d.p_ship !== '완료') {
+    if (allDone) {
+      if (d.p_ship !== '출하대기') {
+        d.p_ship = '출하대기';
+        await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
+        showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
+      }
+    } else if (anyDone) {
+      if (d.p_ship !== '제작중') {
+        d.p_ship = '제작중';
+        await sb.from('pit_items').update({ p_ship: '제작중' }).eq('no', no);
+      }
+    } else {
+      if (d.p_ship === '제작중' || d.p_ship === '출하대기') {
+        d.p_ship = '';
+        await sb.from('pit_items').update({ p_ship: '' }).eq('no', no);
+      }
+    }
+  }
+  initKPI(); renderTable(); renderDoneCards(); renderWaitCards(); renderMfgCards();
+  await sb.from('pit_steps').upsert({ item_no: no, pre: s.pre, bp: s.bp, sp: s.sp, weld: s.weld }, { onConflict: 'item_no' });
+}
+
+
+// ── 날짜 셀 ──────────────────────────────────────────
+function dateCellHtml(no, field, dateStr) {
+  var val = dateStr ? fmtDate(dateStr) : '—';
+  var cls = dateStr ? 'set' : '';
+  var attr = 'openDatePopup(' + no + ',' + JSON.stringify(field) + ',event)';
+  return '<div class="date-cell" onclick="' + attr + '"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">✎</span></div>';
+}
+
 </script>
 
 
