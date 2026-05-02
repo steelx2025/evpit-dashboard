@@ -2675,6 +2675,483 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && scr && scr.style.display !== 'none') doLogin();
 });
 
+
+// ── 네비게이션 ─────────────────────────────────────────
+function showHub() {
+  saveSession('hub');
+  document.getElementById('hub-screen').classList.add('show');
+  ['pit','calendar','estimate','hr','tax','supply'].forEach(function(n){
+    document.getElementById('service-'+n).style.display='none';
+  });
+}
+
+function goService(name) {
+  document.getElementById('hub-screen').classList.remove('show');
+  ['pit','calendar','estimate','hr','tax','supply'].forEach(function(n){
+    document.getElementById('service-'+n).style.display='none';
+  });
+  if(name==='pit'){
+    document.getElementById('service-pit').style.display='block';
+    saveSession('pit'); cf='all';
+    var ab=document.querySelector('#list-filt .fb[data-f="all"]');
+    if(ab){document.querySelectorAll('#list-filt .fb').forEach(function(b){b.classList.remove('on')});ab.classList.add('on');}
+    loadAll();
+  } else if(name==='calendar'){
+    document.getElementById('service-calendar').style.display='block'; saveSession('calendar');
+  } else if(name==='estimate'){
+    document.getElementById('service-estimate').style.display='block'; saveSession('estimate');
+  } else if(name==='hr'){
+    document.getElementById('service-hr').style.display='block'; saveSession('hr'); initHR();
+  } else if(name==='tax'){
+    document.getElementById('service-tax').style.display='block'; saveSession('tax');
+  } else if(name==='supply'){
+    document.getElementById('service-supply').style.display='block'; saveSession('supply'); initSupply();
+  }
+}
+
+function backToHub() {
+  saveSession('hub');
+  ['pit','calendar','estimate','hr','tax','supply'].forEach(function(n){
+    document.getElementById('service-'+n).style.display='none';
+  });
+  document.getElementById('hub-screen').classList.add('show');
+}
+
+function saveSession(screen) { sessionStorage.setItem('sx_screen',screen); }
+
+function restoreSession() {
+  var loggedIn=sessionStorage.getItem('sx_loggedin');
+  var screen=sessionStorage.getItem('sx_screen');
+  if(loggedIn!=='1'){var ls=document.getElementById('login-screen');if(ls)ls.style.display='flex';return;}
+  var ls=document.getElementById('login-screen');if(ls)ls.style.display='none';
+  if(!screen||screen==='hub'){showHub();}else{showHub();goService(screen);}
+}
+document.addEventListener('DOMContentLoaded',function(){restoreSession();});
+
+// ── HR 패널 ────────────────────────────────────────────
+const HR_RATES={steelx:120000,yr:140000};
+const DAYS_KO=['일','월','화','수','목','금','토'];
+const HR_CONFIG={
+  piana:{name:'피안나',type:'daily',options:['','0.5','1','1.5','2','휴무']},
+  obk:{name:'오병조 공장장',type:'monthly'}
+};
+let hrData={},hrEmp='piana',hrYear=2026,hrMonth=4;
+
+async function initHR(){
+  var today=new Date();hrYear=today.getFullYear();hrMonth=today.getMonth()+1;
+  await hrLoadFromSupabase();hrRender();
+}
+
+function hrRenderPiana(year, month, dim, today) {
+  document.getElementById('hr-table-title').textContent='피안나 '+year+'년 '+month+'월 근무표';
+  document.getElementById('hr-thead').innerHTML='<tr><th style="min-width:60px">일자</th><th style="min-width:110px;color:#27500A">스틸엑스 (₩120,000)</th><th style="min-width:110px;color:#185FA5">YR (₩140,000)</th><th style="min-width:100px">합계</th><th style="min-width:180px;text-align:left">비고</th></tr>';
+  var pianaKey='piana_'+year+'_'+String(month).padStart(2,'0');
+  var sumKey=pianaKey;var totalSx=0,totalYr=0,totalAmt=0;
+  var rows='';
+  for(var d=1;d<=dim;d++){
+    var dt=new Date(year,month-1,d);var dow=dt.getDay();var isWeekend=dow===0||dow===6;
+    var isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
+    var dd=String(d).padStart(2,'0');
+    var rec=(hrData[pianaKey]&&hrData[pianaKey][dd])?hrData[pianaKey][dd]:{steelx:'',yr:'',note:''};
+    var sx=parseFloat(rec.steelx)||0;var yr2=parseFloat(rec.yr)||0;
+    var total=sx*HR_RATES.steelx+yr2*HR_RATES.yr;
+    totalSx+=sx;totalYr+=yr2;totalAmt+=total;
+    var totalStr=total>0?'₩'+total.toLocaleString():'₩0';var amtCls=total>0?'amount-cell':'amount-cell zero';
+    var rowCls=isToday?'today-row':isWeekend?'weekend':'';var dateCls=isWeekend?'date-col':'';
+    var sxOpts=['','0.5','1','1.5','2','휴무'].map(function(v){return '<option value="'+v+'" '+(rec.steelx===v?'selected':'')+' '+(v==='휴무'?'style="color:#E24B4A;font-weight:600"':'')+'>'+(v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    var yrOpts=['','0.5','1','1.5','2','휴무'].map(function(v){return '<option value="'+v+'" '+(rec.yr===v?'selected':'')+' '+(v==='휴무'?'style="color:#E24B4A;font-weight:600"':'')+'>'+(v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    rows+='<tr class="'+rowCls+'"><td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td><td><select class="ks-select steelx" onchange="hrSetData('piana','+year+','+month+',''+dd+'','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">'+sxOpts+'</select></td><td><select class="ks-select yr" onchange="hrSetData('piana','+year+','+month+',''+dd+'','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">'+yrOpts+'</select></td><td class="'+amtCls+'" id="hr-total-'+dd+'">'+totalStr+'</td><td style="text-align:left"><input class="hr-note-input" type="text" value="'+(rec.note||'')+'" onchange="hrSetData('piana','+year+','+month+',''+dd+'','note',this.value)" placeholder=""></td></tr>';
+  }
+  rows+='<tr class="sum-row" id="piana-sum-row"><td>합계</td><td id="piana-sum-sx">'+totalSx+'공수</td><td id="piana-sum-yr">'+totalYr+'공수</td><td id="piana-sum-amt">₩'+totalAmt.toLocaleString()+'</td><td></td></tr>';
+  document.getElementById('hr-tbody').innerHTML=rows;
+}
+
+function hrRenderOBK(year, month, dim, today) {
+  document.getElementById('hr-table-title').textContent='오병조 공장장 '+year+'년 '+month+'월 근무현황';
+  document.getElementById('hr-thead').innerHTML='<tr><th style="min-width:60px">일자</th><th style="min-width:200px">출근 상태</th><th style="min-width:200px;text-align:left">비고</th></tr>';
+  var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
+  var statusMap={'출근':{color:'#1D9E75',bg:'#EAF3DE',border:'#1D9E75'},'결근':{color:'#E24B4A',bg:'#FCEBEB',border:'#E24B4A'},'연차':{color:'#EF9F27',bg:'#FAEEDA',border:'#EF9F27'},'휴무':{color:'#E24B4A',bg:'#FCEBEB',border:'#E24B4A'}};
+  var sl=['출근','결근','연차','휴무'];var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};var cls={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
+  var rows='';var wk=0,off=0,vac=0;
+  for(var d=1;d<=dim;d++){
+    var dt=new Date(year,month-1,d);var dow=dt.getDay();var isWeekend=dow===0||dow===6;
+    var isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
+    var dd=String(d).padStart(2,'0');
+    var rec=(hrData[obkKey]&&hrData[obkKey][dd])?hrData[obkKey][dd]:{status:'',note:''};
+    var st=rec.status||'';
+    if(st==='출근')wk++;if(st==='결근')off++;if(st==='연차')vac++;
+    var rowCls=isToday?'today-row':isWeekend?'weekend':'';var dateCls=isWeekend?'date-col':'';
+    var tdId='obk-status-'+year+'-'+String(month).padStart(2,'0')+'-'+dd;
+    var statCell='';
+    if(st){var sm=statusMap[st]||{color:'#666',bg:'#f5f5f5',border:'#ccc'};statCell='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'','',this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+sm.color+';background:'+sm.bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+sm.border+'">'+st+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';}
+    else{statCell='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+cls[s]+'" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'',''+s+'',this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';}
+    rows+='<tr class="'+rowCls+'"><td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td><td id="'+tdId+'">'+statCell+'</td><td style="text-align:left"><input class="hr-note-input" type="text" value="'+(rec.note||'')+'" onchange="hrSetData('obk','+year+','+month+',''+dd+'','note',this.value)" placeholder=""></td></tr>';
+  }
+  rows+='<tr class="sum-row" id="obk-sum-row"><td>합계</td><td id="obk-sum-txt">출근 '+wk+'일 / 결근 '+off+'일 / 연차 '+vac+'일</td><td></td></tr>';
+  document.getElementById('hr-tbody').innerHTML=rows;
+}
+
+function hrRender() {
+  var year=hrYear,month=hrMonth;
+  document.getElementById('hr-month-label').textContent=year+'년 '+month+'월';
+  var dim=new Date(year,month,0).getDate();
+  var today=new Date();
+  if(hrEmp==='piana'){hrRenderPiana(year,month,dim,today);}
+  else{hrRenderOBK(year,month,dim,today);}
+  hrUpdateKPI();
+}
+
+
+async function hrLoadFromSupabase(){
+  try{
+    var year=hrYear,month=hrMonth;
+    var [pianaRes,obkRes]=await Promise.all([
+      sb.from('hr_piana').select('*').order('work_date'),
+      sb.from('hr_obk').select('*').order('work_date'),
+    ]);
+    (pianaRes.data||[]).forEach(function(r){
+      var wd=String(r.work_date),y2=wd.slice(0,4),m2=wd.slice(5,7),dd=wd.slice(8,10);
+      var k='piana_'+y2+'_'+m2;if(!hrData[k])hrData[k]={};
+      hrData[k][dd]={steelx:r.steelx||'',yr:r.yr||'',note:r.note||''};
+    });
+    (obkRes.data||[]).forEach(function(r){
+      var wd=String(r.work_date),y2=wd.slice(0,4),m2=wd.slice(5,7),dd=wd.slice(8,10);
+      var k='obk_'+y2+'_'+m2;if(!hrData[k])hrData[k]={};
+      hrData[k][dd]={status:r.status||'',note:r.note||''};
+    });
+  }catch(e){console.error('HR 로드 오류:',e);}
+}
+
+async function hrSelectEmp(emp,btn){
+  hrEmp=emp;
+  document.querySelectorAll('.hr-emp-btn').forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  await hrLoadFromSupabase();hrRender();
+}
+
+async function hrMonthMove(dir){
+  hrMonth+=dir;
+  if(hrMonth>12){hrMonth=1;hrYear++;}
+  if(hrMonth<1){hrMonth=12;hrYear--;}
+  await hrLoadFromSupabase();hrRender();
+}
+
+async function hrSetData(emp,year,month,day,field,val){
+  var key=emp+'_'+year+'_'+String(month).padStart(2,'0');
+  if(!hrData[key])hrData[key]={};
+  if(!hrData[key][day])hrData[key][day]=emp==='piana'?{steelx:'',yr:'',note:''}:{status:'',note:''};
+  hrData[key][day][field]=val;
+  if(emp==='piana'){
+    var rec=hrData[key][day];
+    var sx=parseFloat(rec.steelx)||0,yr2=parseFloat(rec.yr)||0;
+    var rowTotal=sx*HR_RATES.steelx+yr2*HR_RATES.yr;
+    var totalEl=document.getElementById('hr-total-'+day);
+    if(totalEl){totalEl.textContent=rowTotal>0?'₩'+rowTotal.toLocaleString():'₩0';totalEl.className=rowTotal>0?'amount-cell':'amount-cell zero';}
+    var dim=new Date(year,month,0).getDate();
+    var sumSx=0,sumYr=0,sumAmt=0;
+    for(var d=1;d<=dim;d++){var dd=String(d).padStart(2,'0');var r=hrData[key][dd];if(!r)continue;sumSx+=parseFloat(r.steelx)||0;sumYr+=parseFloat(r.yr)||0;sumAmt+=(parseFloat(r.steelx)||0)*HR_RATES.steelx+(parseFloat(r.yr)||0)*HR_RATES.yr;}
+    var sxEl=document.getElementById('piana-sum-sx');var yrEl=document.getElementById('piana-sum-yr');var amtEl=document.getElementById('piana-sum-amt');
+    if(sxEl)sxEl.textContent=sumSx+'공수';if(yrEl)yrEl.textContent=sumYr+'공수';if(amtEl)amtEl.textContent='₩'+sumAmt.toLocaleString();
+  }
+  hrUpdateKPI();
+  var dateStr=year+'-'+String(month).padStart(2,'0')+'-'+day;
+  var table=emp==='piana'?'hr_piana':'hr_obk';
+  var recToSave=Object.assign({work_date:dateStr},hrData[key][day]);
+  try{await sb.from(table).upsert(recToSave,{onConflict:'work_date'});}catch(e){console.error('HR 저장 오류:',e);}
+}
+
+async function hrSetOBKStatus(year,month,dd,status,el){
+  var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
+  if(!hrData[obkKey])hrData[obkKey]={};
+  if(!hrData[obkKey][dd])hrData[obkKey][dd]={status:'',note:''};
+  hrData[obkKey][dd].status=status;
+  var colors={'출근':'#1D9E75','결근':'#E24B4A','연차':'#EF9F27','휴무':'#E24B4A'};
+  var bgColors={'출근':'#EAF3DE','결근':'#FCEBEB','연차':'#FAEEDA','휴무':'#FCEBEB'};
+  var tdId='obk-status-'+year+'-'+String(month).padStart(2,'0')+'-'+dd;
+  var td=document.getElementById(tdId);
+  if(td){
+    if(status){
+      var sm=colors[status]||'#666',bg=bgColors[status]||'#f5f5f5';
+      td.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'','',this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+sm+';background:'+bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+sm+'">'+status+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';
+    }else{
+      var sl=['출근','결근','연차','휴무'];var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};var cls={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
+      td.innerHTML='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+cls[s]+'" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'',''+s+'',this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';
+    }
+  }
+  var obkDim=new Date(year,month,0).getDate();var wkCnt=0,offCnt=0,vacCnt=0;
+  for(var d=1;d<=obkDim;d++){var ddd=String(d).padStart(2,'0');var r=hrData[obkKey]&&hrData[obkKey][ddd];if(!r)continue;if(r.status==='출근')wkCnt++;if(r.status==='결근')offCnt++;if(r.status==='연차')vacCnt++;}
+  var obkSumEl=document.getElementById('obk-sum-txt');if(obkSumEl)obkSumEl.textContent='출근 '+wkCnt+'일 / 결근 '+offCnt+'일 / 연차 '+vacCnt+'일';
+  hrUpdateKPI();
+  var dateStr=year+'-'+String(month).padStart(2,'0')+'-'+dd;
+  var note=(hrData[obkKey][dd]&&hrData[obkKey][dd].note)||'';
+  try{await sb.from('hr_obk').upsert({work_date:dateStr,status:status,note:note},{onConflict:'work_date'});}catch(e){console.error('OBK 저장 오류:',e);}
+}
+
+function hrUpdateKPI(){
+  var year=hrYear,month=hrMonth;
+  var dim=new Date(year,month,0).getDate();
+  var pianaKey='piana_'+year+'_'+String(month).padStart(2,'0');
+  var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
+  var kpiHTML='';
+  if(hrEmp==='piana'){
+    var totalSx=0,totalYr=0,totalAmt=0,workDays=0;
+    for(var d=1;d<=dim;d++){var dd=String(d).padStart(2,'0');var rec=hrData[pianaKey]&&hrData[pianaKey][dd];if(!rec)continue;var sx=parseFloat(rec.steelx)||0;var yr2=parseFloat(rec.yr)||0;if(sx>0||yr2>0)workDays++;totalSx+=sx;totalYr+=yr2;totalAmt+=sx*HR_RATES.steelx+yr2*HR_RATES.yr;}
+    kpiHTML='<div class="hr-kpi"><div class="hr-kpi-label">총 근무일수</div><div class="hr-kpi-value" style="color:#1a1a1a">'+workDays+'일</div><div class="hr-kpi-sub">'+month+'월 기준</div></div><div class="hr-kpi"><div class="hr-kpi-label">스틸엑스 공수</div><div class="hr-kpi-value" style="color:#27500A">'+totalSx+'공수</div><div class="hr-kpi-sub">₩'+(totalSx*HR_RATES.steelx).toLocaleString()+'</div></div><div class="hr-kpi"><div class="hr-kpi-label">YR 공수</div><div class="hr-kpi-value" style="color:#185FA5">'+totalYr+'공수</div><div class="hr-kpi-sub">₩'+(totalYr*HR_RATES.yr).toLocaleString()+'</div></div><div class="hr-kpi"><div class="hr-kpi-label">월 총 급여</div><div class="hr-kpi-value" style="color:#E24B4A">₩'+totalAmt.toLocaleString()+'</div><div class="hr-kpi-sub">세전 기준</div></div>';
+    // 합계 행 업데이트
+    var sxEl=document.getElementById('piana-sum-sx');var yrEl=document.getElementById('piana-sum-yr');var amtEl=document.getElementById('piana-sum-amt');
+    if(sxEl)sxEl.textContent=totalSx+'공수';if(yrEl)yrEl.textContent=totalYr+'공수';if(amtEl)amtEl.textContent='₩'+totalAmt.toLocaleString();
+  }else{
+    var workDays2=0,offDays=0,vacDays=0,totalDays=0;
+    for(var d=1;d<=dim;d++){var dt=new Date(year,month-1,d);if(dt.getDay()!==0&&dt.getDay()!==6)totalDays++;var dd=String(d).padStart(2,'0');var rec=hrData[obkKey]&&hrData[obkKey][dd];if(!rec)continue;if(rec.status==='출근')workDays2++;if(rec.status==='결근')offDays++;if(rec.status==='연차')vacDays++;}
+    kpiHTML='<div class="hr-kpi"><div class="hr-kpi-label">출근일수</div><div class="hr-kpi-value" style="color:#1D9E75">'+workDays2+'일</div><div class="hr-kpi-sub">평일 기준 '+totalDays+'일</div></div><div class="hr-kpi"><div class="hr-kpi-label">결근일수</div><div class="hr-kpi-value" style="color:#E24B4A">'+offDays+'일</div><div class="hr-kpi-sub">'+month+'월 기준</div></div><div class="hr-kpi"><div class="hr-kpi-label">연차 사용</div><div class="hr-kpi-value" style="color:#EF9F27">'+vacDays+'일</div><div class="hr-kpi-sub">누적 확인 필요</div></div><div class="hr-kpi"><div class="hr-kpi-label">출근율</div><div class="hr-kpi-value" style="color:#534AB7">'+(totalDays>0?Math.round(workDays2/totalDays*100):0)+'%</div><div class="hr-kpi-sub">평일 대비</div></div>';
+  }
+  var kpiRow=document.getElementById('hr-kpi-row');if(kpiRow)kpiRow.innerHTML=kpiHTML;
+}
+
+function hrDownloadExcel(){
+  var year=hrYear,month=hrMonth,dim=new Date(year,month,0).getDate();
+  var wb=XLSX.utils.book_new();
+  if(hrEmp==='piana'){
+    var pianaKey='piana_'+year+'_'+String(month).padStart(2,'0');
+    var headers=['일자','스틸엑스(공수)','YR(공수)','스틸엑스 금액','YR 금액','합계','비고'];
+    var rows=[headers];var tSx=0,tYr=0,tAmt=0;
+    for(var d=1;d<=dim;d++){var dt=new Date(year,month-1,d);var dow=DAYS_KO[dt.getDay()];var dd=String(d).padStart(2,'0');var rec=hrData[pianaKey]&&hrData[pianaKey][dd];var sx=rec?parseFloat(rec.steelx)||0:0;var yr2=rec?parseFloat(rec.yr)||0:0;var amt=sx*HR_RATES.steelx+yr2*HR_RATES.yr;tSx+=sx;tYr+=yr2;tAmt+=amt;rows.push([month+'월 '+d+'일 ('+dow+')',sx||'',yr2||'',sx>0?sx*HR_RATES.steelx:'',yr2>0?yr2*HR_RATES.yr:'',amt>0?amt:'',rec?rec.note||'':'']);}
+    rows.push(['합계',tSx,tYr,tSx*HR_RATES.steelx,tYr*HR_RATES.yr,tAmt,'']);
+    var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:16},{wch:13},{wch:13},{wch:14},{wch:14},{wch:14},{wch:25}];
+    XLSX.utils.book_append_sheet(wb,ws,'피안나_'+month+'월');
+  }else{
+    var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
+    var rows2=[['일자','출근상태','비고']];var wk=0,off=0,vac=0;
+    for(var d=1;d<=dim;d++){var dt=new Date(year,month-1,d);var dow=DAYS_KO[dt.getDay()];var dd=String(d).padStart(2,'0');var rec=hrData[obkKey]&&hrData[obkKey][dd];if(rec&&rec.status==='출근')wk++;if(rec&&rec.status==='결근')off++;if(rec&&rec.status==='연차')vac++;rows2.push([month+'월 '+d+'일 ('+dow+')',rec?rec.status||'':'',rec?rec.note||'':'']);}
+    rows2.push(['합계','출근 '+wk+'일 / 결근 '+off+'일 / 연차 '+vac+'일','']);
+    var ws=XLSX.utils.aoa_to_sheet(rows2);ws['!cols']=[{wch:16},{wch:20},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws,'오병조공장장_'+month+'월');
+  }
+  var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  var empName=hrEmp==='piana'?'피안나':'오병조공장장';
+  XLSX.writeFile(wb,'STEELX_직원관리_'+empName+'_'+year+'년'+month+'월_'+ds+'.xlsx');
+  showToast('📥 급여명세 다운로드 완료!');
+}
+
+// ── 소모품 관리 ─────────────────────────────────────────
+var supplyYear=2026,supplyMonth=4,supplyData=[],supplyDelId=null,gasRowCount=0;
+var GAS_CSS={CO2:'co2',알곤:'argon',혼합:'mixed',LPG:'lpg',산소:'oxygen'};
+var GAS_ICON={CO2:'🔵',알곤:'🟣',혼합:'🟢',LPG:'🟡',산소:'🔴'};
+
+function getGasTypes(){try{var s=localStorage.getItem('sx_gasTypes');if(s)return JSON.parse(s);}catch(e){}return['CO2','알곤','혼합','LPG','산소'];}
+function saveGasTypes(types){try{localStorage.setItem('sx_gasTypes',JSON.stringify(types));}catch(e){}}
+function getGasIcon(name){return GAS_ICON[name]||'⚪';}
+
+async function initSupply(){
+  var today=new Date();supplyYear=today.getFullYear();supplyMonth=today.getMonth()+1;
+  await supplyLoadData();supplyRender();
+}
+
+async function supplyLoadData(){
+  try{var res=await sb.from('gas_records').select('*').order('req_date',{ascending:false});supplyData=res.data||[];}
+  catch(e){console.error('가스 로드 오류:',e);supplyData=[];}
+}
+
+function supplySelectMenu(menu,btn){document.querySelectorAll('.supply-menu-btn').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');}
+
+function supplyMonthMove(dir){
+  supplyMonth+=dir;if(supplyMonth>12){supplyMonth=1;supplyYear++;}if(supplyMonth<1){supplyMonth=12;supplyYear--;}supplyRender();
+}
+
+function updateSupplyKPICards(){
+  var types=getGasTypes();var colors=['co2','argon','mixed','lpg','oxygen','co2','argon'];
+  var icons2=['💧','🫧','⚗️','🔥','💨','💧','🫧'];
+  var kpiRow=document.getElementById('supply-kpi-row');if(!kpiRow)return;
+  kpiRow.innerHTML=types.map(function(t,i){var cls=colors[i%colors.length];var id='kpi-gas-'+i;return '<div class="supply-kpi '+cls+'"><div class="supply-kpi-top"><div class="supply-kpi-label">'+t+'</div><div class="supply-kpi-icon">'+icons2[i%icons2.length]+'</div></div><div class="supply-kpi-value" id="'+id+'">0</div><div class="supply-kpi-unit">개 사용</div></div>';}).join('');
+}
+
+function supplyRender(){
+  document.getElementById('supply-month-label').textContent=supplyYear+'년 '+supplyMonth+'월';
+  document.getElementById('supply-table-title').textContent=supplyYear+'년 '+supplyMonth+'월 가스 신청 내역';
+  var monthStr=supplyYear+'-'+String(supplyMonth).padStart(2,'0');
+  var filtered=supplyData.filter(function(r){return r.req_date&&r.req_date.startsWith(monthStr);});
+  var gasTypes=getGasTypes();var totals={};gasTypes.forEach(function(t){totals[t]=0;});
+  filtered.forEach(function(r){if(totals[r.gas_type]!==undefined)totals[r.gas_type]+=r.qty||0;});
+  updateSupplyKPICards();
+  gasTypes.forEach(function(t,i){var el=document.getElementById('kpi-gas-'+i);if(el)el.textContent=totals[t]||0;});
+  if(filtered.length===0){document.getElementById('supply-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
+  var grouped={};filtered.forEach(function(r){var d=r.req_date?r.req_date.slice(0,10):'미정';if(!grouped[d])grouped[d]=[];grouped[d].push(r);});
+  var sortedDates=Object.keys(grouped).sort(function(a,b){return b.localeCompare(a);});
+  var rows='';var totalQty=0;var rowNum=1;
+  sortedDates.forEach(function(date){
+    var items=grouped[date];var dayTotal=items.reduce(function(s,r){return s+(r.qty||0);},0);
+    var dt=new Date(date);var days2=['일','월','화','수','목','금','토'];var dayStr=date.replace(/-/g,'.')+'('+days2[dt.getDay()]+')';var isWeekend=dt.getDay()===0||dt.getDay()===6;
+    rows+='<tr style="background:'+(isWeekend?'#fff5f5':'#f8f9fa')+';border-top:2px solid #e5e5e5"><td colspan="6" style="padding:8px 16px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:700;font-size:13px;color:'+(isWeekend?'#E24B4A':'#1a1a1a')+'">'+dayStr+'</span><span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">'+dayTotal+'개</strong></span></div></td></tr>';
+    items.forEach(function(r){
+      var cls=GAS_CSS[r.gas_type]||'';var icon=getGasIcon(r.gas_type);totalQty+=r.qty||0;
+      rows+='<tr style="background:#fff"><td style="color:#bbb;font-size:11px;width:40px">'+rowNum+'</td><td style="color:#999;font-size:12px"></td><td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td><td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td><td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td><td><button class="del-btn" onclick="openSupplyDelModal('+r.id+',''+r.gas_type+'','+r.qty+')">✕</button></td></tr>';
+      rowNum++;
+    });
+  });
+  var gasTypes2=getGasTypes();var typeTotals={};gasTypes2.forEach(function(t){typeTotals[t]=0;});filtered.forEach(function(r){if(typeTotals[r.gas_type]!==undefined)typeTotals[r.gas_type]+=r.qty||0;});
+  var typeSum=gasTypes2.filter(function(t){return typeTotals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+typeTotals[t]+'개';}).join('  |  ');
+  rows+='<tr class="sum-row"><td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td></tr>';
+  document.getElementById('supply-tbody').innerHTML=rows;
+}
+
+function renderGasTypeSelect(){
+  var sel=document.getElementById('supply-type');if(!sel)return;
+  var types=getGasTypes();var cur=sel.value;
+  sel.innerHTML='<option value="">선택</option>'+types.map(function(t){return '<option value="'+t+'" '+(cur===t?'selected':'')+'>'+getGasIcon(t)+' '+t+'</option>';}).join('');
+}
+
+function openAddGasType(){document.getElementById('add-gas-wrap').style.display='block';document.getElementById('new-gas-name').value='';document.getElementById('new-gas-name').focus();}
+function closeAddGasType(){document.getElementById('add-gas-wrap').style.display='none';}
+function confirmAddGasType(){
+  var name=document.getElementById('new-gas-name').value.trim();if(!name){alert('가스 종류 이름을 입력해주세요.');return;}
+  var types=getGasTypes();if(types.includes(name)){alert('이미 존재해요.');return;}
+  types.push(name);saveGasTypes(types);updateSupplyKPICards();renderGasTypeSelect();
+  document.getElementById('supply-type').value=name;closeAddGasType();showToast('✅ '+name+' 추가됐어요!');
+}
+
+var gasRowCount=0;
+function renderGasRow(idx){
+  var types=getGasTypes();var opts=types.map(function(t){return '<option value="'+t+'">'+getGasIcon(t)+' '+t+'</option>';}).join('');
+  return '<div id="gas-row-'+idx+'" style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center"><select class="supply-form-select" id="gas-type-'+idx+'" style="height:40px"><option value="">선택</option>'+opts+'</select><input class="supply-form-input" type="number" id="gas-qty-'+idx+'" min="1" placeholder="수량" style="height:40px;text-align:center"><button onclick="removeGasRow('+idx+')" style="width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px" onmouseover="this.style.background='#FCEBEB';this.style.color='#E24B4A'" onmouseout="this.style.background='#fff';this.style.color='#ccc'">✕</button></div>';
+}
+function addGasRow(){var list=document.getElementById('gas-items-list');if(!list)return;var idx=gasRowCount++;var div=document.createElement('div');div.innerHTML=renderGasRow(idx);list.appendChild(div.firstElementChild);}
+function removeGasRow(idx){var row=document.getElementById('gas-row-'+idx);if(row)row.remove();var list=document.getElementById('gas-items-list');if(list&&list.children.length===0)addGasRow();}
+
+function openSupplyModal(){
+  var today=new Date();var y=today.getFullYear();var m=String(today.getMonth()+1).padStart(2,'0');var d=String(today.getDate()).padStart(2,'0');
+  document.getElementById('supply-date').value=y+'-'+m+'-'+d;document.getElementById('supply-note').value='';
+  gasRowCount=0;var list=document.getElementById('gas-items-list');if(list)list.innerHTML='';addGasRow();
+  document.getElementById('supply-modal').classList.add('open');
+}
+function closeSupplyModal(){document.getElementById('supply-modal').classList.remove('open');}
+
+async function saveSupplyItem(){
+  var date=document.getElementById('supply-date').value;var note=document.getElementById('supply-note').value.trim();
+  if(!date){alert('신청 날짜를 입력해주세요.');return;}
+  var list=document.getElementById('gas-items-list');var rows=list?list.querySelectorAll('[id^="gas-row-"]'):[];var items=[];
+  for(var r of rows){var idx=r.id.replace('gas-row-','');var type=document.getElementById('gas-type-'+idx)?.value;var qty=parseInt(document.getElementById('gas-qty-'+idx)?.value);if(!type||!qty||qty<1)continue;items.push({req_date:date,gas_type:type,qty:qty,note:note});}
+  if(items.length===0){alert('가스 종류와 수량을 입력해주세요.');return;}
+  var btn=document.querySelector('.supply-modal-save');btn.textContent='저장 중...';btn.disabled=true;
+  try{
+    var res=await sb.from('gas_records').insert(items).select();if(res.error)throw res.error;
+    res.data.forEach(function(d){supplyData.unshift(d);});closeSupplyModal();
+    var parts=date.split('-');supplyYear=parseInt(parts[0]);supplyMonth=parseInt(parts[1]);
+    supplyRender();showToast('✅ '+items.length+'건 등록됐어요!');
+  }catch(e){alert('등록 오류: '+e.message);}
+  finally{btn.textContent='💾 등록하기';btn.disabled=false;}
+}
+
+function openSupplyDelModal(id,type,qty){supplyDelId=id;document.getElementById('supply-del-desc').textContent=type+' '+qty+'개 항목을 삭제하면 복구할 수 없습니다.';document.getElementById('supply-del-modal').classList.add('open');}
+function closeSupplyDelModal(){document.getElementById('supply-del-modal').classList.remove('open');supplyDelId=null;}
+async function confirmSupplyDelete(){
+  if(!supplyDelId)return;var id=supplyDelId;closeSupplyDelModal();
+  try{await sb.from('gas_records').delete().eq('id',id);supplyData=supplyData.filter(function(r){return r.id!==id;});supplyRender();showToast('🗑️ 삭제됐어요');}
+  catch(e){alert('삭제 오류: '+e.message);}
+}
+
+function supplyDownloadExcel(){
+  var monthStr=supplyYear+'-'+String(supplyMonth).padStart(2,'0');
+  var filtered=supplyData.filter(function(r){return r.req_date&&r.req_date.startsWith(monthStr);});
+  if(filtered.length===0){alert('데이터가 없습니다.');return;}
+  var wb=XLSX.utils.book_new();var headers=['No','신청일','가스종류','수량(개)','비고'];var rows2=[headers];
+  filtered.forEach(function(r,i){rows2.push([i+1,r.req_date?r.req_date.slice(0,10).replace(/-/g,'.'):'' ,r.gas_type,r.qty,r.note||'']);});
+  var total=filtered.reduce(function(s,r){return s+(r.qty||0);},0);rows2.push(['','','합계',total,'']);
+  var ws=XLSX.utils.aoa_to_sheet(rows2);ws['!cols']=[{wch:6},{wch:12},{wch:10},{wch:10},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws,supplyYear+'년'+supplyMonth+'월_가스내역');
+  var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb,'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');showToast('📥 엑셀 다운로드 완료!');
+}
+
+// ── 항목 추가/삭제 (EV PIT) ──────────────────────────────
+function openPanel(){
+  ['sp-site','sp-dong','sp-gu','sp-pit','sp-spec','sp-note'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('sp-dl').value='';document.getElementById('sp-price').value='';document.getElementById('sp-sd').value='';document.getElementById('sp-ad').value='';
+  document.getElementById('side-panel').classList.add('open');document.getElementById('side-overlay').classList.add('open');
+  setTimeout(function(){document.getElementById('sp-site').focus();},300);
+}
+function closePanel(){document.getElementById('side-panel').classList.remove('open');document.getElementById('side-overlay').classList.remove('open');}
+
+async function saveNewItem(){
+  var site=document.getElementById('sp-site').value.trim();var pit=document.getElementById('sp-pit').value.trim();var dl=document.getElementById('sp-dl').value;
+  if(!site||!pit||!dl){alert('현장명, PIT NO., 마감 월은 필수 입력입니다.');return;}
+  var maxNo=D.length>0?Math.max.apply(null,D.map(function(d){return d.no;})):0;var newNo=maxNo+1;
+  var newItem={no:newNo,site:site,dong:document.getElementById('sp-dong').value.trim()||'-',gu:document.getElementById('sp-gu').value.trim()||'1구',pit:pit,spec:document.getElementById('sp-spec').value.trim()||'',mat_b:'',mat_s:'',p_ship:'',note:document.getElementById('sp-note').value.trim()||'',dl:dl,price:parseInt(document.getElementById('sp-price').value)||0,sd:document.getElementById('sp-sd').value||null,ad:document.getElementById('sp-ad').value||null};
+  var btn=document.querySelector('.sp-save');btn.textContent='저장 중...';btn.disabled=true;
+  try{
+    var res=await sb.from('pit_items').insert([newItem]).select();if(res.error)throw res.error;
+    D.push(newItem);matState[newNo]={b:'',s:''};stepState[newNo]={pre:false,bp:false,sp:false,weld:false};
+    await sb.from('pit_steps').insert([{item_no:newNo,pre:false,bp:false,sp:false,weld:false}]);
+    closePanel();initKPI();updateDlDropdown();renderTable();renderDoneCards();renderWaitCards();renderMfgCards();renderDL();renderSites();showToast('✅ 새 항목이 추가됐어요!');
+  }catch(e){console.error(e);alert('저장 중 오류: '+e.message);}
+  finally{btn.textContent='💾 저장하기';btn.disabled=false;}
+}
+
+var deleteTargetNo=null;
+function openDelModal(no,pit,site){deleteTargetNo=no;document.getElementById('del-modal-desc').textContent='[No.'+no+'] '+site+' '+pit+' 항목을 삭제하면 복구할 수 없습니다.';document.getElementById('del-modal').classList.add('open');}
+function closeDelModal(){document.getElementById('del-modal').classList.remove('open');deleteTargetNo=null;}
+async function confirmDelete(){
+  if(!deleteTargetNo)return;var no=deleteTargetNo;closeDelModal();
+  try{await sb.from('pit_steps').delete().eq('item_no',no);await sb.from('pit_items').delete().eq('no',no);var idx=D.findIndex(function(d){return d.no===no;});if(idx>=0)D.splice(idx,1);delete matState[no];delete stepState[no];initKPI();renderTable();renderDoneCards();renderWaitCards();renderMfgCards();renderDL();renderSites();showToast('🗑️ 항목이 삭제됐어요');}
+  catch(e){console.error(e);alert('삭제 오류: '+e.message);}
+}
+
+// ── 날짜 편집 ─────────────────────────────────────────────
+var _dateTarget=null;
+function openDatePopup(no,field,event){
+  event.stopPropagation();_dateTarget={no:no,field:field};var d=D.find(function(x){return x.no===no;});if(!d)return;
+  var label=field==='sd'?'상차 예정일':'현장 도착일';var curVal=field==='sd'?d.sd:d.ad;
+  document.getElementById('date-popup-title').textContent='No.'+no+' '+d.pit+' — '+label;document.getElementById('date-popup-input').value=curVal?curVal.slice(0,10):'';
+  var popup=document.getElementById('date-popup');popup.style.display='block';document.getElementById('date-overlay').style.display='block';document.getElementById('date-overlay').classList.add('active');
+  var rect=event.currentTarget.getBoundingClientRect();var left=rect.left;var top=rect.bottom+4;if(left+220>window.innerWidth)left=window.innerWidth-228;if(top+130>window.innerHeight)top=rect.top-134;if(top<8)top=8;popup.style.left=left+'px';popup.style.top=top+'px';
+  setTimeout(function(){document.getElementById('date-popup-input').focus();},100);
+}
+function closeDatePopup(){document.getElementById('date-popup').style.display='none';document.getElementById('date-overlay').style.display='none';document.getElementById('date-overlay').classList.remove('active');_dateTarget=null;}
+async function saveDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var val=document.getElementById('date-popup-input').value;var d=D.find(function(x){return x.no===no;});if(!d)return;var update={};update[field]=val||null;d[field]=val||null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('📅 날짜 저장됐어요 ✓');}
+async function clearDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var d=D.find(function(x){return x.no===no;});if(d)d[field]=null;var update={};update[field]=null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('📅 날짜 삭제됐어요');}
+
+// ── 규격 편집 ─────────────────────────────────────────────
+function specCellHtml(no,spec){var txt=spec||'—';var cls=spec?'has-value':'';return '<div class="spec-cell" onclick="openSpecEdit('+no+', event)"><span class="spec-text '+cls+'" id="spec-txt-'+no+'">'+txt+'</span><span class="spec-edit-icon">✎</span></div><div class="spec-input-wrap" id="spec-wrap-'+no+'"><input class="spec-input" id="spec-in-'+no+'" type="text" value="'+(spec||'')+'" placeholder="예) 2350*2250*2250" onkeydown="specKeyDown(event,'+no+')"><button class="spec-save-btn" onclick="saveSpec('+no+')">저장</button></div>';}
+function openSpecEdit(no,event){event.stopPropagation();document.querySelectorAll('.spec-input-wrap.open').forEach(function(el){el.classList.remove('open');});var wrap=document.getElementById('spec-wrap-'+no);if(wrap){wrap.classList.add('open');setTimeout(function(){var inp=document.getElementById('spec-in-'+no);if(inp){inp.focus();inp.select();}},50);}}
+function specKeyDown(event,no){if(event.key==='Enter'){event.preventDefault();saveSpec(no);}if(event.key==='Escape'){var wrap=document.getElementById('spec-wrap-'+no);if(wrap)wrap.classList.remove('open');}}
+async function saveSpec(no){var inp=document.getElementById('spec-in-'+no);if(!inp)return;var val=inp.value.trim();var d=D.find(function(x){return x.no===no;});if(d)d.spec=val;var txtEl=document.getElementById('spec-txt-'+no);if(txtEl){txtEl.textContent=val||'—';txtEl.className='spec-text'+(val?' has-value':'');}var wrap=document.getElementById('spec-wrap-'+no);if(wrap)wrap.classList.remove('open');await sb.from('pit_items').update({spec:val}).eq('no',no);showToast('규격 저장됐어요 ✓');}
+document.addEventListener('click',function(){document.querySelectorAll('.spec-input-wrap.open').forEach(function(el){el.classList.remove('open');});});
+
+// ── 부착표지 ─────────────────────────────────────────────
+function openLabelModal(no){var d=D.find(function(x){return x.no===no;});if(!d)return;var adStr='—';if(d.ad){var dt=new Date(d.ad);var days2=['일','월','화','수','목','금','토'];adStr=dt.getFullYear()+'년 '+(dt.getMonth()+1)+'월 '+dt.getDate()+'일 '+days2[dt.getDay()]+'요일';}
+document.getElementById('lv-site').textContent=d.site||'—';document.getElementById('lv-dong').textContent=d.dong||'—';document.getElementById('lv-pit').textContent=d.pit||'—';document.getElementById('lv-spec').textContent=d.spec||'—';document.getElementById('lv-ad').textContent=adStr;document.getElementById('label-overlay').classList.add('open');}
+function closeLabelModal(){document.getElementById('label-overlay').classList.remove('open');}
+function printLabel(){var pa=document.getElementById('print-area');['site','dong','pit','spec','ad'].forEach(function(k){var el=document.getElementById('pa-'+k);var src=document.getElementById('lv-'+k);if(el&&src)el.textContent=src.textContent;});pa.style.cssText='display:block;position:fixed;inset:0;background:#fff;z-index:99999;';setTimeout(function(){window.print();pa.style.cssText='display:none;position:absolute;left:-9999px;top:-9999px;visibility:hidden;';},100);}
+
+// ── 엑셀 다운로드 (EV PIT) ────────────────────────────────
+function downloadExcel(){
+  var btn=document.getElementById('excel-btn');
+  var rows2=D;if(cf==='done')rows2=D.filter(isDone);else if(cf==='wait')rows2=D.filter(isWait);else if(cf==='mat')rows2=D.filter(function(d){return(d.mat_b&&d.mat_b!=='완료')||(d.mat_s&&d.mat_s!=='완료');});else if(cf==='mfg')rows2=D.filter(isMfg);else if(cf.startsWith('dl:'))rows2=D.filter(function(d){return d.dl===cf.slice(3);});
+  if(rows2.length===0){alert('다운로드할 데이터가 없습니다.');return;}
+  var filterName='전체';if(cf==='done')filterName='출하완료';else if(cf==='wait')filterName='출하대기';else if(cf==='mat')filterName='자재예정';else if(cf==='mfg')filterName='제작중';else if(cf.startsWith('dl:'))filterName=cf.slice(3)+'마감';
+  btn.disabled=true;btn.textContent='⏳ 생성 중...';
+  try{
+    function excelDate(ds){if(!ds)return '';var p=(ds+'').slice(0,10).split('-');return p[0]+'.'+p[1]+'.'+p[2];}
+    var headers=['No','현장명','동','구분','PIT NO.','규격','상차일','현장도착일','마감','단가(원)','비고'];
+    var dataRows=rows2.map(function(d){return[d.no,d.site||'',d.dong||'',d.gu||'',d.pit||'',d.spec||'',excelDate(d.sd),excelDate(d.ad),d.dl||'',d.price||0,d.note||''];});
+    var total=rows2.reduce(function(s,d){return s+(d.price||0);},0);var sumRow=['','','','','','','','','합계',total,''];
+    var wb=XLSX.utils.book_new();var wsData=[headers].concat(dataRows).concat([sumRow]);var ws=XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols']=[{wch:6},{wch:22},{wch:8},{wch:6},{wch:8},{wch:20},{wch:12},{wch:12},{wch:8},{wch:13},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws,filterName);
+    var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
+    XLSX.writeFile(wb,'STEELX_EVPIT_'+filterName+'_'+ds+'.xlsx');showToast('📥 엑셀 파일 다운로드 완료!');
+  }catch(e){console.error(e);alert('엑셀 생성 오류: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='📥 엑셀 다운로드';}
+}
+
+// ── 마감 월 드롭다운 동적 ────────────────────────────────
+function updateDlDropdown(){var sel=document.getElementById('dl-select');if(!sel)return;var curVal=sel.value;while(sel.options.length>1)sel.remove(1);var months=[];D.forEach(function(d){if(d.dl&&months.indexOf(d.dl)===-1)months.push(d.dl);});months.sort(function(a,b){return parseInt(a)-parseInt(b);});months.forEach(function(m){var opt=document.createElement('option');opt.value=m;opt.textContent=m;sel.appendChild(opt);});if(curVal)sel.value=curVal;}
+
+// ── toggleShipDone ───────────────────────────────────────
+async function toggleShipDone(no){var d=D.find(function(x){return x.no===no;});if(!d)return;if(d.p_ship==='출하대기'){d.p_ship='완료';await sb.from('pit_items').update({p_ship:'완료'}).eq('no',no);showToast('✅ 출하완료 처리됐어요!');}else if(d.p_ship==='완료'){d.p_ship='출하대기';await sb.from('pit_items').update({p_ship:'출하대기'}).eq('no',no);showToast('↩️ 출하대기로 변경됐어요');}initKPI();renderTable();renderDoneCards();renderWaitCards();}
+
+// ── ESC 키 ───────────────────────────────────────────────
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closePanel();closeDelModal();closeDatePopup();closeLabelModal();closeSupplyDelModal();closeSupplyModal();}});
+
 </script>
 
 
@@ -2824,1939 +3301,27 @@ document.addEventListener('keydown', function(e) {
       <!-- KPI 카드 -->
       <div class="supply-kpi-row" id="supply-kpi-row">
         <div class="supply-kpi co2">
-          <div class="supply-kpi-top">
-            <div class="supply-kpi-label">CO₂</div>
-            <div class="supply-kpi-icon"><svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="13" y="1" width="6" height="4" rx="1" fill="rgba(255,255,255,.6)" opacity=".9"/>
-      <rect x="11" y="4" width="10" height="3" rx="1" fill="rgba(255,255,255,.6)" opacity=".7"/>
-      <rect x="9" y="7" width="14" height="32" rx="7" fill="rgba(255,255,255,.25)"/>
-      <rect x="10" y="8" width="12" height="30" rx="6" fill="rgba(255,255,255,.15)"/>
-      <rect x="12" y="9" width="5" height="20" rx="2.5" fill="rgba(255,255,255,.2)"/>
-    </svg></div>
-          </div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">CO₂</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#93c5fd"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#93c5fd"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g1)"/><rect x="8" y="12" width="20" height="30" fill="url(#g1)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g1)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-0">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi argon">
-          <div class="supply-kpi-top">
-            <div class="supply-kpi-label">알곤</div>
-            <div class="supply-kpi-icon"><svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="13" y="1" width="6" height="4" rx="1" fill="rgba(255,255,255,.6)" opacity=".9"/>
-      <rect x="11" y="4" width="10" height="3" rx="1" fill="rgba(255,255,255,.6)" opacity=".7"/>
-      <rect x="9" y="7" width="14" height="32" rx="7" fill="rgba(255,255,255,.25)"/>
-      <rect x="10" y="8" width="12" height="30" rx="6" fill="rgba(255,255,255,.15)"/>
-      <rect x="12" y="9" width="5" height="20" rx="2.5" fill="rgba(255,255,255,.2)"/>
-    </svg></div>
-          </div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">알곤</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#c4b5fd"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#c4b5fd"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g2)"/><rect x="8" y="12" width="20" height="30" fill="url(#g2)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g2)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-1">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi mixed">
-          <div class="supply-kpi-top">
-            <div class="supply-kpi-label">혼합</div>
-            <div class="supply-kpi-icon"><svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="13" y="1" width="6" height="4" rx="1" fill="rgba(255,255,255,.6)" opacity=".9"/>
-      <rect x="11" y="4" width="10" height="3" rx="1" fill="rgba(255,255,255,.6)" opacity=".7"/>
-      <rect x="9" y="7" width="14" height="32" rx="7" fill="rgba(255,255,255,.25)"/>
-      <rect x="10" y="8" width="12" height="30" rx="6" fill="rgba(255,255,255,.15)"/>
-      <rect x="12" y="9" width="5" height="20" rx="2.5" fill="rgba(255,255,255,.2)"/>
-    </svg></div>
-          </div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">혼합</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#6ee7b7"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#6ee7b7"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g3)"/><rect x="8" y="12" width="20" height="30" fill="url(#g3)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g3)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#065f46"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-2">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi lpg">
-          <div class="supply-kpi-top">
-            <div class="supply-kpi-label">LPG</div>
-            <div class="supply-kpi-icon"><svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="13" y="1" width="6" height="4" rx="1" fill="rgba(255,255,255,.6)" opacity=".9"/>
-      <rect x="11" y="4" width="10" height="3" rx="1" fill="rgba(255,255,255,.6)" opacity=".7"/>
-      <rect x="9" y="7" width="14" height="32" rx="7" fill="rgba(255,255,255,.25)"/>
-      <rect x="10" y="8" width="12" height="30" rx="6" fill="rgba(255,255,255,.15)"/>
-      <rect x="12" y="9" width="5" height="20" rx="2.5" fill="rgba(255,255,255,.2)"/>
-    </svg></div>
-          </div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">LPG</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#fde68a"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#fde68a"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g4)"/><rect x="8" y="12" width="20" height="30" fill="url(#g4)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g4)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fcd34d"/><stop offset="100%" stop-color="#92400e"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-3">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi oxygen">
-          <div class="supply-kpi-top">
-            <div class="supply-kpi-label">산소</div>
-            <div class="supply-kpi-icon"><svg width="32" height="44" viewBox="0 0 32 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="13" y="1" width="6" height="4" rx="1" fill="rgba(255,255,255,.6)" opacity=".9"/>
-      <rect x="11" y="4" width="10" height="3" rx="1" fill="rgba(255,255,255,.6)" opacity=".7"/>
-      <rect x="9" y="7" width="14" height="32" rx="7" fill="rgba(255,255,255,.25)"/>
-      <rect x="10" y="8" width="12" height="30" rx="6" fill="rgba(255,255,255,.15)"/>
-      <rect x="12" y="9" width="5" height="20" rx="2.5" fill="rgba(255,255,255,.2)"/>
-    </svg></div>
-          </div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#fca5a5"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#fca5a5"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g5)"/><rect x="8" y="12" width="20" height="30" fill="url(#g5)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g5)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g5" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f87171"/><stop offset="100%" stop-color="#991b1b"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-4">0</div>
           <div class="supply-kpi-unit">개 사용</div>
-        </div>
-      </div>
-
-      <!-- 내역 테이블 -->
-      <div class="supply-table-wrap">
-        <div class="supply-table-header">
-          <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
-          <button class="hr-excel-btn" onclick="supplyDownloadExcel()">📥 엑셀 다운로드</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="supply-tbl">
-            <thead>
-              <tr>
-                <th style="min-width:40px;width:40px">No</th>
-                <th style="min-width:100px">신청일</th>
-                <th style="min-width:120px">가스 종류</th>
-                <th style="min-width:80px">수량</th>
-                <th style="min-width:160px;text-align:left">비고</th>
-                <th style="min-width:44px">삭제</th>
-              </tr>
-            </thead>
-            <tbody id="supply-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 가스 등록 모달 -->
-<div class="supply-modal-overlay" id="supply-modal">
-  <div class="supply-modal" style="width:500px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div class="supply-modal-title" style="margin-bottom:0">🔵 가스 신청 등록</div>
-      <button onclick="closeSupplyModal()" style="width:28px;height:28px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:14px;color:#666">✕</button>
-    </div>
-
-    <!-- 신청 날짜 -->
-    <div class="supply-form-field">
-      <label class="supply-form-label">신청 날짜 *</label>
-      <input class="supply-form-input" type="date" id="supply-date">
-    </div>
-
-    <!-- 가스 항목 헤더 -->
-    <div style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:6px;padding:0 2px">
-      <div style="font-size:11px;font-weight:600;color:#999;letter-spacing:.05em;text-transform:uppercase">가스 종류 *</div>
-      <div style="font-size:11px;font-weight:600;color:#999;letter-spacing:.05em;text-transform:uppercase">수량 (개) *</div>
-      <div></div>
-    </div>
-
-    <!-- 가스 항목 목록 -->
-    <div id="gas-items-list"></div>
-
-    <!-- 항목 추가 버튼 -->
-    <button onclick="addGasRow()" style="width:100%;padding:10px;border:1.5px dashed #e0e0e0;border-radius:8px;background:transparent;color:#14b8a6;font-size:13px;font-weight:600;cursor:pointer;margin:8px 0 16px;transition:all .15s"
-      onmouseover="this.style.borderColor='#14b8a6';this.style.background='#f0fdfa'"
-      onmouseout="this.style.borderColor='#e0e0e0';this.style.background='transparent'">
-      ＋ 가스 항목 추가
-    </button>
-
-    <!-- 비고 -->
-    <div class="supply-form-field">
-      <label class="supply-form-label">비고</label>
-      <input class="supply-form-input" type="text" id="supply-note" placeholder="특이사항 입력">
-    </div>
-
-    <div class="supply-modal-btns">
-      <button class="supply-modal-cancel" onclick="closeSupplyModal()">취소</button>
-      <button class="supply-modal-save" onclick="saveSupplyItem()">💾 등록하기</button>
-    </div>
-  </div>
-</div>
-
-<!-- 가스 삭제 확인 모달 -->
-<div class="del-modal-overlay" id="supply-del-modal">
-  <div class="del-modal">
-    <div class="del-modal-icon">🗑️</div>
-    <div class="del-modal-title">항목을 삭제할까요?</div>
-    <div class="del-modal-desc" id="supply-del-desc">삭제하면 복구할 수 없습니다.</div>
-    <div class="del-modal-btns">
-      <button class="del-modal-cancel" onclick="closeSupplyDelModal()">취소</button>
-      <button class="del-modal-confirm" onclick="confirmSupplyDelete()">삭제</button>
-    </div>
-  </div>
-</div>
-
-
-
-<script>
-
-// ── STEELX 로그인 ──────────────────────────
-function doLogin() {
-  var id = document.getElementById('ls-id').value.trim();
-  var pw = document.getElementById('ls-pw').value;
-  var err = document.getElementById('ls-err');
-  if (id === 'steelx' && pw === 'tmxlfdprtm&18') {
-    err.classList.remove('show');
-    var scr = document.getElementById('login-screen');
-    scr.classList.add('fade-out');
-    setTimeout(function() {
-      scr.style.display = 'none';
-      sessionStorage.setItem('sx_loggedin','1');
-      saveSession('hub');
-      showHub();
-    }, 700);
-  } else {
-    err.classList.add('show');
-    document.getElementById('ls-pw').value = '';
-    document.getElementById('ls-pw').focus();
-    var card = document.querySelector('.ls-card-inner');
-    card.style.animation = 'none';
-    card.offsetHeight;
-    card.style.animation = 'shake .4s ease';
-  }
-}
-document.addEventListener('keydown', function(e) {
-  var scr = document.getElementById('login-screen');
-  if (e.key === 'Enter' && scr && scr.style.display !== 'none') doLogin();
-});
-
-
-// ── 항목 추가 패널 ────────────────────────────
-function openPanel() {
-  // 입력값 초기화
-  ['sp-site','sp-dong','sp-gu','sp-pit','sp-spec','sp-note'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('sp-dl').value = '';
-  document.getElementById('sp-price').value = '';
-  document.getElementById('sp-sd').value = '';
-  document.getElementById('sp-ad').value = '';
-  document.getElementById('side-panel').classList.add('open');
-  document.getElementById('side-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('sp-site').focus(), 300);
-}
-
-function closePanel() {
-  document.getElementById('side-panel').classList.remove('open');
-  document.getElementById('side-overlay').classList.remove('open');
-}
-
-async function saveNewItem() {
-  const site  = document.getElementById('sp-site').value.trim();
-  const pit   = document.getElementById('sp-pit').value.trim();
-  const dl    = document.getElementById('sp-dl').value;
-
-  if (!site || !pit || !dl) {
-    alert('현장명, PIT NO., 마감 월은 필수 입력입니다.');
-    return;
-  }
-
-  // 다음 no 계산
-  const maxNo = D.length > 0 ? Math.max(...D.map(d => d.no)) : 0;
-  const newNo = maxNo + 1;
-
-  const newItem = {
-    no:      newNo,
-    site:    site,
-    dong:    document.getElementById('sp-dong').value.trim() || '-',
-    gu:      document.getElementById('sp-gu').value.trim() || '1구',
-    pit:     pit,
-    spec:    document.getElementById('sp-spec').value.trim() || '',
-    mat_b:   '',
-    mat_s:   '',
-    p_ship:  '',
-    note:    document.getElementById('sp-note').value.trim() || '',
-    dl:      dl,
-    price:   parseInt(document.getElementById('sp-price').value) || 0,
-    sd:      document.getElementById('sp-sd').value || null,
-    ad:      document.getElementById('sp-ad').value || null,
-  };
-
-  // 저장 버튼 로딩
-  const btn = document.querySelector('.sp-save');
-  btn.textContent = '저장 중...';
-  btn.disabled = true;
-
-  try {
-    const { data, error } = await sb.from('pit_items').insert([newItem]).select();
-    if (error) throw error;
-
-    // 로컬 추가
-    D.push(newItem);
-    matState[newNo] = { b: '', s: '' };
-    stepState[newNo] = { pre: false, bp: false, sp: false, weld: false };
-
-    // pit_steps 초기값 추가
-    await sb.from('pit_steps').insert([{ item_no: newNo, pre: false, bp: false, sp: false, weld: false }]);
-
-    closePanel();
-    initKPI();
-    renderTable();
-    renderDoneCards();
-    renderWaitCards();
-    renderMfgCards();
-    renderDL();
-    renderSites();
-    showToast('✅ 새 항목이 추가됐어요!');
-  } catch(e) {
-    console.error(e);
-    alert('저장 중 오류가 발생했습니다: ' + e.message);
-  } finally {
-    btn.textContent = '💾 저장하기';
-    btn.disabled = false;
-  }
-}
-
-// ── 항목 삭제 ─────────────────────────────────
-let deleteTargetNo = null;
-
-function openDelModal(no, pit, site) {
-  deleteTargetNo = no;
-  document.getElementById('del-modal-desc').textContent =
-    `[No.${no}] ${site} ${pit} 항목을 삭제하면 복구할 수 없습니다.`;
-  document.getElementById('del-modal').classList.add('open');
-}
-
-function closeDelModal() {
-  document.getElementById('del-modal').classList.remove('open');
-  deleteTargetNo = null;
-}
-
-async function confirmDelete() {
-  if (!deleteTargetNo) return;
-  const no = deleteTargetNo;
-  closeDelModal();
-
-  try {
-    // DB 삭제
-    await sb.from('pit_steps').delete().eq('item_no', no);
-    await sb.from('pit_items').delete().eq('no', no);
-
-    // 로컬 삭제
-    const idx = D.findIndex(d => d.no === no);
-    if (idx >= 0) D.splice(idx, 1);
-    delete matState[no];
-    delete stepState[no];
-
-    initKPI();
-    renderTable();
-    renderDoneCards();
-    renderWaitCards();
-    renderMfgCards();
-    renderDL();
-    renderSites();
-    showToast('🗑️ 항목이 삭제됐어요');
-  } catch(e) {
-    console.error(e);
-    alert('삭제 중 오류: ' + e.message);
-  }
-}
-
-// ESC 키로 패널/모달 닫기
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closePanel();
-    closeDelModal();
-  }
-});
-
-
-// ── 허브 네비게이션 ───────────────────────────
-function showHub() {
-  saveSession('hub');
-  document.getElementById('hub-screen').classList.add('show');
-  document.getElementById('service-pit').style.display      = 'none';
-  document.getElementById('service-calendar').style.display = 'none';
-  document.getElementById('service-estimate').style.display = 'none';
-}
-
-
-
-function backToHub() {
-  saveSession('hub');
-  document.getElementById('service-pit').style.display      = 'none';
-  document.getElementById('service-calendar').style.display = 'none';
-  document.getElementById('service-estimate').style.display = 'none';
-  document.getElementById('hub-screen').classList.add('show');
-}
-
-
-function shipCheckHtml(d) {
-  if (d.p_ship === '완료') {
-    return `<div class="ship-check-wrap" onclick="toggleShipDone(${d.no})" title="클릭하면 출하대기로 변경">
-      <div class="ship-checkbox checked">✓</div>
-      <span class="ship-label checked">출하완료</span>
-    </div>`;
-  } else if (d.p_ship === '출하대기') {
-    return `<div class="ship-check-wrap" onclick="toggleShipDone(${d.no})" title="클릭하면 출하완료 처리">
-      <div class="ship-checkbox waiting">대기</div>
-      <span class="ship-label waiting">출하대기</span>
-    </div>`;
-  } else if (isMfg(d)) {
-    // 제작중 - 공정단계 1개 이상 체크된 상태
-    return `<span class="pill p-mfg">제작중</span>`;
-  } else {
-    const st = getStatus(d);
-    return `<span class="pill ${st.cls}">${st.label}</span>`;
-  }
-}
-
-// ── 수정1: 부착표지 ──────────────────────────
-function openLabelModal(no) {
-  const d = D.find(x => x.no === no);
-  if (!d) return;
-  // 도착일 포맷
-  let adStr = '—';
-  if (d.ad) {
-    const dt = new Date(d.ad);
-    const days = ['일','월','화','수','목','금','토'];
-    adStr = `${dt.getFullYear()}년 ${dt.getMonth()+1}월 ${dt.getDate()}일 ${days[dt.getDay()]}요일`;
-  }
-  document.getElementById('lv-site').textContent = d.site || '—';
-  document.getElementById('lv-dong').textContent = d.dong || '—';
-  document.getElementById('lv-pit').textContent  = d.pit  || '—';
-  document.getElementById('lv-spec').textContent = d.spec || '—';
-  document.getElementById('lv-ad').textContent   = adStr;
-  document.getElementById('label-overlay').classList.add('open');
-}
-function closeLabelModal() {
-  document.getElementById('label-overlay').classList.remove('open');
-}
-function printLabel() {
-  var pa = document.getElementById('print-area');
-  ['site','dong','pit','spec','ad'].forEach(function(k) {
-    var el = document.getElementById('pa-' + k);
-    var src = document.getElementById('lv-' + k);
-    if (el && src) el.textContent = src.textContent;
-  });
-  // 인쇄 영역 화면에 표시
-  pa.style.cssText = 'display:block;position:fixed;inset:0;background:#fff;z-index:99999;';
-  setTimeout(function() {
-    window.print();
-    // 인쇄 후 숨기기
-    pa.style.cssText = 'display:none;position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
-  }, 100);
-}
-
-// ── 출하완료 토글 ─────────────────────────────
-async function toggleShipDone(no) {
-  const d = D.find(x => x.no === no);
-  if (!d) return;
-  if (d.p_ship === '출하대기') {
-    d.p_ship = '완료';
-    await sb.from('pit_items').update({ p_ship: '완료' }).eq('no', no);
-    showToast('✅ 출하완료 처리됐어요!');
-  } else if (d.p_ship === '완료') {
-    d.p_ship = '출하대기';
-    await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
-    showToast('↩️ 출하대기로 변경됐어요');
-  }
-  initKPI(); renderTable(); renderDoneCards(); renderWaitCards();
-}
-
-
-async function toggleStep(no, key) {
-  if (!stepState[no]) stepState[no] = { pre:false, bp:false, sp:false, weld:false };
-  stepState[no][key] = !stepState[no][key];
-
-  const s = stepState[no];
-  const d = D.find(x => x.no === no);
-  const allDone  = s.pre && s.bp && s.sp && s.weld;
-  const anyDone  = s.pre || s.bp || s.sp || s.weld;
-
-  if (d && d.p_ship !== '완료') {
-    // 출하완료 상태는 절대 건드리지 않음
-    if (allDone) {
-      // 4개 모두 → 출하대기 자동
-      if (d.p_ship !== '출하대기') {
-        d.p_ship = '출하대기';
-        await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
-        showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
-      }
-    } else if (anyDone) {
-      // 1개라도 체크 → 제작중
-      if (d.p_ship !== '제작중') {
-        d.p_ship = '제작중';
-        await sb.from('pit_items').update({ p_ship: '제작중' }).eq('no', no);
-        showToast('🔧 제작중으로 변경됐어요');
-      }
-    } else {
-      // 모두 해제 → 초기 상태
-      if (d.p_ship === '제작중' || d.p_ship === '출하대기') {
-        d.p_ship = '';
-        await sb.from('pit_items').update({ p_ship: '' }).eq('no', no);
-        showToast('↩️ 공정 초기화됐어요');
-      }
-    }
-  }
-
-  initKPI(); renderTable(); renderDoneCards(); renderWaitCards(); renderMfgCards();
-  await sb.from('pit_steps').upsert({ item_no: no, ...stepState[no] }, { onConflict: 'item_no' });
-}
-
-function goService(name) {
-  document.getElementById('hub-screen').classList.remove('show');
-  ['pit','calendar','estimate','hr','tax','supply'].forEach(function(n) {
-    document.getElementById('service-' + n).style.display = 'none';
-  });
-  if (name === 'pit') {
-    document.getElementById('service-pit').style.display = 'block';
-    saveSession('pit');
-    cf = 'all';
-    var allBtn = document.querySelector('#list-filt .fb[data-f="all"]');
-    if (allBtn) {
-      document.querySelectorAll('#list-filt .fb').forEach(function(b){ b.classList.remove('on'); });
-      allBtn.classList.add('on');
-    }
-    loadAll();
-  } else if (name === 'calendar') {
-    document.getElementById('service-calendar').style.display = 'block';
-    saveSession('calendar');
-  } else if (name === 'estimate') {
-    document.getElementById('service-estimate').style.display = 'block';
-    saveSession('estimate');
-  } else if (name === 'hr') {
-    document.getElementById('service-hr').style.display = 'block';
-    saveSession('hr');
-    initHR();
-  } else if (name === 'tax') {
-    document.getElementById('service-tax').style.display = 'block';
-    saveSession('tax');
-  } else if (name === 'supply') {
-    document.getElementById('service-supply').style.display = 'block';
-    saveSession('supply');
-    initSupply();
-  }
-}
-
-
-// ── 화면 상태 유지 (새로고침 대응) ──────────────
-function saveSession(screen) {
-  sessionStorage.setItem('sx_screen', screen);
-}
-
-function restoreSession() {
-  var loggedIn = sessionStorage.getItem('sx_loggedin');
-  var screen   = sessionStorage.getItem('sx_screen');
-
-  if (loggedIn !== '1') {
-    // 로그인 안 된 상태 → 로그인 화면 보이기
-    var ls = document.getElementById('login-screen');
-    if (ls) ls.style.display = 'flex';
-    return;
-  }
-
-  // 로그인된 상태 → 로그인 화면 숨기기
-  var ls = document.getElementById('login-screen');
-  if (ls) ls.style.display = 'none';
-
-  if (!screen || screen === 'hub') {
-    showHub();
-  } else {
-    showHub();
-    goService(screen);
-  }
-}
-
-// DOM 준비 후 세션 복원
-document.addEventListener('DOMContentLoaded', function() {
-  restoreSession();
-});
-
-
-function dateCellHtml(no, field, dateStr) {
-  const val = dateStr ? fmtDate(dateStr) : '—';
-  const cls = dateStr ? 'set' : '';
-  return `<div class="date-cell" onclick="openDatePopup(${no},'${field}',event)">
-    <span class="date-val ${cls}">${val}</span>
-    <span class="date-edit-icon">✎</span>
-  </div>`;
-}
-
-// ── 날짜 편집 ─────────────────────────────────────────────
-var _dateTarget = null; // { no, field }
-
-function openDatePopup(no, field, event) {
-  event.stopPropagation();
-  _dateTarget = { no: no, field: field };
-  const d = D.find(x => x.no === no);
-  if (!d) return;
-  const label = field === 'sd' ? '상차 예정일' : '현장 도착일';
-  const curVal = field === 'sd' ? d.sd : d.ad;
-  document.getElementById('date-popup-title').textContent = 'No.' + no + ' ' + d.pit + ' — ' + label;
-  document.getElementById('date-popup-input').value = curVal ? curVal.slice(0,10) : '';
-
-  const popup = document.getElementById('date-popup');
-  popup.style.display = 'block';
-  document.getElementById('date-overlay').style.display = 'block';
-  document.getElementById('date-overlay').classList.add('active');
-
-  // 위치 계산
-  const rect = event.currentTarget.getBoundingClientRect();
-  let left = rect.left;
-  let top = rect.bottom + 4;
-  const popupW = 220, popupH = 130;
-  if (left + popupW > window.innerWidth) left = window.innerWidth - popupW - 8;
-  if (top + popupH > window.innerHeight) top = rect.top - popupH - 4;
-  if (top < 8) top = 8;
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
-
-  setTimeout(function() {
-    document.getElementById('date-popup-input').focus();
-  }, 100);
-}
-
-function closeDatePopup() {
-  document.getElementById('date-popup').style.display = 'none';
-  document.getElementById('date-overlay').style.display = 'none';
-  document.getElementById('date-overlay').classList.remove('active');
-  _dateTarget = null;
-}
-
-async function saveDate() {
-  if (!_dateTarget) return;
-  const { no, field } = _dateTarget;
-  const val = document.getElementById('date-popup-input').value;
-  const d = D.find(x => x.no === no);
-  if (!d) return;
-
-  const update = {};
-  update[field] = val || null;
-  d[field] = val || null;
-
-  closeDatePopup();
-  renderTable();
-
-  await sb.from('pit_items').update(update).eq('no', no);
-  showToast('📅 날짜 저장됐어요 ✓');
-}
-
-async function clearDate() {
-  if (!_dateTarget) return;
-  const { no, field } = _dateTarget;
-  const d = D.find(x => x.no === no);
-  if (d) d[field] = null;
-  const update = {};
-  update[field] = null;
-
-  closeDatePopup();
-  renderTable();
-
-  await sb.from('pit_items').update(update).eq('no', no);
-  showToast('📅 날짜 삭제됐어요');
-}
-
-
-// ── 엑셀 다운로드 ─────────────────────────────────────────
-function downloadExcel() {
-  var btn = document.getElementById('excel-btn');
-
-  // 현재 필터 적용된 데이터 가져오기
-  var rows = D;
-  if (cf === 'done')       rows = D.filter(isDone);
-  else if (cf === 'wait')  rows = D.filter(isWait);
-  else if (cf === 'mat')   rows = D.filter(function(d){ return (d.mat_b && d.mat_b !== '완료') || (d.mat_s && d.mat_s !== '완료'); });
-  else if (cf === 'mfg')   rows = D.filter(isMfg);
-  else if (cf.startsWith('dl:')) rows = D.filter(function(d){ return d.dl === cf.slice(3); });
-
-  if (rows.length === 0) {
-    alert('다운로드할 데이터가 없습니다.');
-    return;
-  }
-
-  // 파일명에 필터 정보 포함
-  var filterName = '전체';
-  if (cf === 'done')       filterName = '출하완료';
-  else if (cf === 'wait')  filterName = '출하대기';
-  else if (cf === 'mat')   filterName = '자재예정';
-  else if (cf === 'mfg')   filterName = '제작중';
-  else if (cf.startsWith('dl:')) filterName = cf.slice(3) + ' 마감';
-
-  btn.disabled = true;
-  btn.textContent = '⏳ 생성 중...';
-
-  try {
-    // 날짜 포맷 함수
-    function excelDate(ds) {
-      if (!ds) return '';
-      var p = (ds + '').slice(0, 10).split('-');
-      return p[0] + '.' + p[1] + '.' + p[2];
-    }
-
-    // 출하 상태 텍스트
-    function shipText(d) {
-      if (isDone(d))  return '출하완료';
-      if (isWait(d))  return '출하대기';
-      if (isMfg(d))   return '제작중';
-      return '대기';
-    }
-
-    // 헤더 행
-    var headers = [
-      'No', '현장명', '동', '구분', 'PIT NO.', '규격',
-      '상차일', '현장도착일', '마감', '단가(원)', '비고'
-    ];
-
-    // 데이터 행
-    var dataRows = rows.map(function(d) {
-      return [
-        d.no,
-        d.site || '',
-        d.dong || '',
-        d.gu   || '',
-        d.pit  || '',
-        d.spec || '',
-        excelDate(d.sd),
-        excelDate(d.ad),
-        d.dl   || '',
-        d.price || 0,
-        d.note || ''
-      ];
-    });
-
-    // 합계 행
-    var total = rows.reduce(function(s, d){ return s + (d.price || 0); }, 0);
-    var sumRow = ['', '', '', '', '', '', '', '', '합계', total, ''];
-
-    // 워크북 생성
-    var wb = XLSX.utils.book_new();
-    var wsData = [headers].concat(dataRows).concat([sumRow]);
-    var ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // 열 너비 설정
-    ws['!cols'] = [
-      {wch:6},   // No
-      {wch:22},  // 현장명
-      {wch:8},   // 동
-      {wch:6},   // 구분
-      {wch:8},   // PIT
-      {wch:20},  // 규격
-      {wch:12},  // 상차일
-      {wch:12},  // 도착일
-      {wch:8},   // 마감
-      {wch:13},  // 단가
-      {wch:30},  // 비고
-    ];
-
-    // 헤더 스타일 (배경색 + 굵게)
-    var headerStyle = {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '1A1A1A' } },
-      alignment: { horizontal: 'center', vertical: 'center' },
-      border: {
-        top:    { style: 'thin', color: { rgb: '000000' } },
-        bottom: { style: 'thin', color: { rgb: '000000' } },
-        left:   { style: 'thin', color: { rgb: '000000' } },
-        right:  { style: 'thin', color: { rgb: '000000' } }
-      }
-    };
-
-    // 합계 행 스타일
-    var sumStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: 'EAF3DE' } },
-      alignment: { horizontal: 'center' },
-      border: {
-        top:    { style: 'thin', color: { rgb: '000000' } },
-        bottom: { style: 'thin', color: { rgb: '000000' } },
-        left:   { style: 'thin', color: { rgb: '000000' } },
-        right:  { style: 'thin', color: { rgb: '000000' } }
-      }
-    };
-
-    // 헤더 행 스타일 적용
-    headers.forEach(function(h, i) {
-      var cell = ws[XLSX.utils.encode_cell({ r: 0, c: i })];
-      if (cell) cell.s = headerStyle;
-    });
-
-    // 데이터 행 테두리 적용
-    dataRows.forEach(function(row, ri) {
-      row.forEach(function(val, ci) {
-        var cell = ws[XLSX.utils.encode_cell({ r: ri + 1, c: ci })];
-        if (cell) {
-          cell.s = {
-            border: {
-              top:    { style: 'thin', color: { rgb: 'E0E0E0' } },
-              bottom: { style: 'thin', color: { rgb: 'E0E0E0' } },
-              left:   { style: 'thin', color: { rgb: 'E0E0E0' } },
-              right:  { style: 'thin', color: { rgb: 'E0E0E0' } }
-            },
-            alignment: ci === 1 || ci === 11 ? { horizontal: 'left' } : { horizontal: 'center' }
-          };
-          // 단가 숫자 포맷
-          if (ci === 9) {
-            cell.s.numFmt = '#,##0';
-            cell.t = 'n';
-          }
-        }
-      });
-    });
-
-    // 합계 행 스타일 적용
-    sumRow.forEach(function(val, ci) {
-      var cell = ws[XLSX.utils.encode_cell({ r: dataRows.length + 1, c: ci })];
-      if (cell) {
-        cell.s = sumStyle;
-        if (ci === 9) { cell.s.numFmt = '#,##0'; cell.t = 'n'; }
-      }
-    });
-
-    // 행 높이
-    ws['!rows'] = [{ hpt: 22 }]; // 헤더 높이
-
-    XLSX.utils.book_append_sheet(wb, ws, filterName);
-
-    // 파일명: STEELX_EV PIT_4월마감_20260428.xlsx
-    var today = new Date();
-    var dateStr = today.getFullYear() + String(today.getMonth()+1).padStart(2,'0') + String(today.getDate()).padStart(2,'0');
-    var fileName = 'STEELX_EVPIT_' + filterName + '_' + dateStr + '.xlsx';
-
-    XLSX.writeFile(wb, fileName);
-    showToast('📥 엑셀 파일 다운로드 완료!');
-  } catch(e) {
-    console.error(e);
-    alert('엑셀 생성 오류: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '📥 엑셀 다운로드';
-  }
-}
-
-
-// ── 마감 월 드롭다운 동적 업데이트 ──────────────
-function updateDlDropdown() {
-  var sel = document.getElementById('dl-select');
-  if (!sel) return;
-  var curVal = sel.value;
-  // 기존 옵션 제거 (첫번째 "마감 월 선택" 제외)
-  while (sel.options.length > 1) sel.remove(1);
-  // DB 데이터에서 월 목록 추출
-  var months = [];
-  D.forEach(function(d){ if(d.dl && months.indexOf(d.dl) === -1) months.push(d.dl); });
-  months.sort(function(a,b){ return parseInt(a)-parseInt(b); });
-  months.forEach(function(m) {
-    var opt = document.createElement('option');
-    opt.value = m; opt.textContent = m;
-    sel.appendChild(opt);
-  });
-  // 이전 선택값 복원
-  if (curVal) sel.value = curVal;
-}
-
-
-// ══════════════════════════════════════════════════════
-//  직원 관리 시스템
-// ══════════════════════════════════════════════════════
-
-const HR_CONFIG = {
-  piana: {
-    name: '피안나',
-    type: 'daily',  // 일용직
-    companies: {
-      steelx: { label: '스틸엑스', rate: 120000, color: 'steelx' },
-      yr:     { label: 'YR',      rate: 140000, color: 'yr'     },
-    },
-    options: ['', '0.5', '1', '1.5', '2', '휴무'],
-  },
-  obk: {
-    name: '오병조 공장장',
-    type: 'monthly', // 월급
-    statuses: ['출근', '결근', '연차', '휴무'],
-  }
-};
-
-const HR_RATES = { steelx: 120000, yr: 140000 };
-const DAYS_KO  = ['일','월','화','수','목','금','토'];
-
-// 데이터 저장소 (메모리)
-// hrData[empId][YYYY-MM][dd] = { steelx, yr, note } 또는 { status, note }
-let hrData  = {};
-let hrEmp   = 'piana';
-let hrYear  = 2026;
-let hrMonth = 4; // 1-based
-
-async function initHR() {
-  await hrLoadFromSupabase();
-  hrRender();
-}
-
-async function hrLoadFromSupabase() {
-  try {
-    const year  = hrYear;
-    const month = hrMonth;
-    const from  = year + '-' + String(month).padStart(2,'0') + '-01';
-    // 해당 월의 마지막 날 정확히 계산
-    const lastDay = new Date(year, month, 0).getDate();
-    const to    = year + '-' + String(month).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
-
-
-
-    const [pianaRes, obkRes] = await Promise.all([
-      sb.from('hr_piana').select('*').order('work_date'),
-      sb.from('hr_obk').select('*').order('work_date'),
-    ]);
-
-
-
-    // 전체 데이터를 hrData 캐시에 저장 (모든 월)
-    (pianaRes.data || []).forEach(r => {
-      const wd = String(r.work_date);
-      const y2 = wd.slice(0,4);
-      const m2 = wd.slice(5,7);
-      const dd = wd.slice(8,10);
-      const k  = 'piana_' + y2 + '_' + m2;
-      if (!hrData[k]) hrData[k] = {};
-      hrData[k][dd] = { steelx: r.steelx||'', yr: r.yr||'', note: r.note||'' };
-    });
-    (obkRes.data || []).forEach(r => {
-      const wd = String(r.work_date);
-      const y2 = wd.slice(0,4);
-      const m2 = wd.slice(5,7);
-      const dd = wd.slice(8,10);
-      const k  = 'obk_' + y2 + '_' + m2;
-      if (!hrData[k]) hrData[k] = {};
-      hrData[k][dd] = { status: r.status||'', note: r.note||'' };
-    });
-
-
-
-    console.log('[HR] 로드 완료. hrData:', JSON.stringify(hrData).slice(0,200));
-  } catch(e) {
-    console.error('[HR] 로드 오류:', e);
-  }
-}
-
-async function hrSelectEmp(emp, btn) {
-  hrEmp = emp;
-  document.querySelectorAll('.hr-emp-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  await hrLoadFromSupabase();
-  hrRender();
-}
-
-async function hrMonthMove(dir) {
-  hrMonth += dir;
-  if (hrMonth > 12) { hrMonth = 1; hrYear++; }
-  if (hrMonth < 1)  { hrMonth = 12; hrYear--; }
-  await hrLoadFromSupabase();
-  hrRender();
-}
-
-function hrGetData(emp, year, month, day) {
-  const key = emp + '_' + year + '_' + String(month).padStart(2,'0');
-  if (!hrData[key]) hrData[key] = {};
-  if (!hrData[key][day]) {
-    hrData[key][day] = emp === 'piana'
-      ? { steelx:'', yr:'', note:'' }
-      : { status:'', note:'' };
-  }
-  return hrData[key][day];
-}
-
-async function hrSetData(emp, year, month, day, field, val) {
-  // 1. hrData 캐시 직접 업데이트
-  const key = emp + '_' + year + '_' + String(month).padStart(2,'0');
-  if (!hrData[key]) hrData[key] = {};
-  if (!hrData[key][day]) {
-    hrData[key][day] = emp === 'piana'
-      ? { steelx:'', yr:'', note:'' }
-      : { status:'', note:'' };
-  }
-  hrData[key][day][field] = val;
-
-  // 2. 피안나 - 해당 행 합계 + 전체 합계 즉시 업데이트
-  if (emp === 'piana') {
-    const rec = hrData[key][day];
-    const sx = parseFloat(rec.steelx) || 0;
-    const yr = parseFloat(rec.yr) || 0;
-    const rowTotal = sx * HR_RATES.steelx + yr * HR_RATES.yr;
-
-    // 행 합계 업데이트
-    const totalEl = document.getElementById('hr-total-' + day);
-    if (totalEl) {
-      totalEl.textContent = rowTotal > 0 ? '₩' + rowTotal.toLocaleString() : '₩0';
-      totalEl.className = rowTotal > 0 ? 'amount-cell' : 'amount-cell zero';
-    }
-
-    // 전체 합계 행 다시 계산
-    const dim = new Date(year, month, 0).getDate();
-    let sumSx=0, sumYr=0, sumAmt=0;
-    for (let d=1; d<=dim; d++) {
-      const dd = String(d).padStart(2,'0');
-      const r = hrData[key][dd];
-      if (!r) continue;
-      sumSx  += parseFloat(r.steelx)||0;
-      sumYr  += parseFloat(r.yr)||0;
-      sumAmt += (parseFloat(r.steelx)||0)*HR_RATES.steelx + (parseFloat(r.yr)||0)*HR_RATES.yr;
-    }
-    const sxEl  = document.getElementById('piana-sum-sx');
-    const yrEl  = document.getElementById('piana-sum-yr');
-    const amtEl = document.getElementById('piana-sum-amt');
-    if (sxEl)  sxEl.textContent  = sumSx  + '공수';
-    if (yrEl)  yrEl.textContent  = sumYr  + '공수';
-    if (amtEl) amtEl.textContent = '₩' + sumAmt.toLocaleString();
-  }
-
-  // 3. KPI 즉시 업데이트
-  hrUpdateKPI();
-
-  // 4. Supabase DB 저장
-  const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + day;
-  const table = emp === 'piana' ? 'hr_piana' : 'hr_obk';
-  const recToSave = Object.assign({ work_date: dateStr }, hrData[key][day]);
-  try {
-    const { error } = await sb.from(table).upsert(recToSave, { onConflict: 'work_date' });
-    if (error) console.error('HR 저장 오류:', error);
-  } catch(e) {
-    console.error('HR 저장 예외:', e);
-  }
-}
-
-// ── HR 데이터 로컬 캐시 (렌더링용) ─────────────
-function hrSaveToStorage() {
-  // Supabase에 저장하므로 localStorage 불필요
-}
-function hrLoadFromStorage() {
-  // Supabase에서 로드하므로 localStorage 불필요
-}
-
-async function hrRender() {
-  // DB 로드는 initHR/월이동/직원변경 시에만, 여기선 캐시 사용
-  const year = hrYear, month = hrMonth;
-  document.getElementById('hr-month-label').textContent = year + '년 ' + month + '월';
-
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const today = new Date();
-
-  if (hrEmp === 'piana') {
-    hrRenderPiana(year, month, daysInMonth, today);
-  } else {
-    hrRenderOBK(year, month, daysInMonth, today);
-  }
-  hrUpdateKPI();
-}
-
-// ── 피안나 근무표 ──────────────────────────────────────
-function hrRenderPiana(year, month, dim, today) {
-  document.getElementById('hr-table-title').textContent =
-    '피안나 ' + year + '년 ' + month + '월 근무표';
-
-  // 헤더
-  document.getElementById('hr-thead').innerHTML = `
-    <tr>
-      <th style="min-width:60px">일자</th>
-      <th style="min-width:110px;color:#27500A">스틸엑스 (₩120,000)</th>
-      <th style="min-width:110px;color:#185FA5">YR (₩140,000)</th>
-      <th style="min-width:100px">합계</th>
-      <th style="min-width:180px;text-align:left">비고</th>
-    </tr>`;
-
-  let rows = '';
-  for (let d = 1; d <= dim; d++) {
-    const dt      = new Date(year, month-1, d);
-    const dow     = dt.getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const isToday = d === today.getDate() && month === today.getMonth()+1 && year === today.getFullYear();
-    const dd      = String(d).padStart(2,'0');
-    // DB 데이터 직접 참조 (없으면 빈값)
-    const pianaKey2 = 'piana_' + year + '_' + String(month).padStart(2,'0');
-    const rec = (hrData[pianaKey2] && hrData[pianaKey2][dd])
-      ? hrData[pianaKey2][dd]
-      : { steelx:'', yr:'', note:'' };
-    const sx      = parseFloat(rec.steelx) || 0;
-    const yr      = parseFloat(rec.yr)     || 0;
-    const total   = sx * HR_RATES.steelx + yr * HR_RATES.yr;
-    const totalStr = total > 0 ? '₩' + total.toLocaleString() : '₩0';
-    const amtCls  = total > 0 ? 'amount-cell' : 'amount-cell zero';
-    const rowCls  = isToday ? 'today-row' : isWeekend ? 'weekend' : '';
-    const dateCls = isWeekend ? 'date-col' : '';
-
-    const sxOpts = HR_CONFIG.piana.options.map(v =>
-      `<option value="${v}" ${rec.steelx===v?'selected':''} ${v==='휴무'?'style="color:#E24B4A;font-weight:600"':''}>${v===''?'—':v==='휴무'?'🔴 휴무':v+'공수'}</option>`
-    ).join('');
-    const yrOpts = HR_CONFIG.piana.options.map(v =>
-      `<option value="${v}" ${rec.yr===v?'selected':''} ${v==='휴무'?'style="color:#E24B4A;font-weight:600"':''}>${v===''?'—':v==='휴무'?'🔴 휴무':v+'공수'}</option>`
-    ).join('');
-
-    rows += `<tr class="${rowCls}">
-      <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
-      <td>
-        <select class="ks-select steelx" onchange="hrSetData('piana',${year},${month},'${dd}','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
-          ${sxOpts}
-        </select>
-      </td>
-      <td>
-        <select class="ks-select yr" onchange="hrSetData('piana',${year},${month},'${dd}','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">
-          ${yrOpts}
-        </select>
-      </td>
-      <td class="${amtCls}" id="hr-total-${dd}">${totalStr}</td>
-      <td style="text-align:left">
-        <input class="hr-note-input" type="text" value="${rec.note||''}"
-          onchange="hrSetData('piana',${year},${month},'${dd}','note',this.value);showToast('비고 저장됐어요 ✓');"
-          placeholder="">
-      </td>
-    </tr>`;
-  }
-
-  // 합계 행
-  const sumKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
-  let totalSx=0, totalYr=0, totalAmt=0;
-  for (let d=1;d<=dim;d++){
-    const dd=String(d).padStart(2,'0');
-    const r2 = (hrData[sumKey] && hrData[sumKey][dd]) ? hrData[sumKey][dd] : null;
-    if (!r2) continue;
-    totalSx  += parseFloat(r2.steelx)||0;
-    totalYr  += parseFloat(r2.yr)||0;
-    totalAmt += (parseFloat(r2.steelx)||0)*HR_RATES.steelx + (parseFloat(r2.yr)||0)*HR_RATES.yr;
-  }
-
-  rows += `<tr class="sum-row" id="piana-sum-row">
-    <td>합계</td>
-    <td id="piana-sum-sx">${totalSx}공수</td>
-    <td id="piana-sum-yr">${totalYr}공수</td>
-    <td id="piana-sum-amt">₩${totalAmt.toLocaleString()}</td>
-    <td></td>
-  </tr>`;
-
-  document.getElementById('hr-tbody').innerHTML = rows;
-}
-
-// ── 오병조 공장장 근무표 ──────────────────────────────
-function hrRenderOBK(year, month, dim, today) {
-  document.getElementById('hr-table-title').textContent =
-    '오병조 공장장 ' + year + '년 ' + month + '월 근무현황';
-
-  document.getElementById('hr-thead').innerHTML = `
-    <tr>
-      <th style="min-width:60px">일자</th>
-      <th style="min-width:100px">출근 상태</th>
-      <th style="min-width:200px;text-align:left">비고</th>
-    </tr>`;
-
-  const statusMap = {
-    '출근':   { icon:'✓', cls:'work',    badge:'hr-badge-work',    label:'출근'   },
-    '결근':   { icon:'✗', cls:'holiday', badge:'hr-badge-holiday', label:'결근'   },
-    '연차':   { icon:'🌴', cls:'vacation',badge:'hr-badge-vac',    label:'연차'   },
-    '휴무':   { icon:'🔴', cls:'holiday', badge:'hr-badge-holiday', label:'휴무'   },
-    '':       { icon:'—', cls:'off',     badge:'',                 label:''       },
-  };
-
-  let rows='', workDays=0, offDays=0, vacDays=0;
-  for (let d=1;d<=dim;d++){
-    const dt=new Date(year,month-1,d);
-    const dow=dt.getDay();
-    const isWeekend=dow===0||dow===6;
-    const isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
-    const dd=String(d).padStart(2,'0');
-    const obkKey2 = 'obk_' + year + '_' + String(month).padStart(2,'0');
-    const rec = (hrData[obkKey2] && hrData[obkKey2][dd])
-      ? hrData[obkKey2][dd]
-      : { status:'', note:'' };
-    const st=rec.status||'';
-    const sm=statusMap[st]||statusMap[''];
-    const rowCls=isToday?'today-row':isWeekend?'weekend':'';
-    const dateCls=isWeekend?'date-col':'';
-
-    if(st==='출근') workDays++;
-    if(st==='결근') offDays++;
-    if(st==='연차') vacDays++;
-
-    // 상태 셀: 선택 전=버튼들, 선택 후=텍스트만
-    let statCell;
-    if (st) {
-      // 선택된 상태 → 텍스트+뱃지만 표시, 클릭하면 초기화
-      const colors = {
-        '출근': '#1D9E75', '결근': '#E24B4A',
-        '연차': '#EF9F27', '휴무': '#E24B4A'
-      };
-      const bgColors = {
-        '출근': '#EAF3DE', '결근': '#FCEBEB',
-        '연차': '#FAEEDA', '휴무': '#FCEBEB'
-      };
-      statCell = `<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer"
-        onclick="hrSetData('obk',${year},${month},'${dd}','status','');hrRender()"
-        title="클릭하면 초기화">
-        <span style="font-size:14px;font-weight:700;color:${colors[st]||'#666'};
-          background:${bgColors[st]||'#f5f5f5'};padding:4px 16px;border-radius:20px;
-          border:1.5px solid ${colors[st]||'#ccc'}">
-          ${st}
-        </span>
-        <span style="font-size:10px;color:#ccc">✕</span>
-      </div>`;
-    } else {
-      // 미선택 → 버튼 4개 표시
-      const statBtns = ['출근','결근','연차','휴무'].map(s => {
-        const m2 = statusMap[s]||statusMap[''];
-        return `<button class="attend-check ${m2.cls}"
-          onclick="hrSetOBKStatus(${year},${month},'${dd}','${s}',this)"
-          title="${s}">${m2.icon}</button>`;
-      }).join('');
-      statCell = `<div style="display:flex;align-items:center;gap:4px;justify-content:center">${statBtns}</div>`;
-    }
-
-    rows+=`<tr class="${rowCls}">
-      <td class="${dateCls}" style="font-weight:500">${month}월 ${d}일 (${DAYS_KO[dow]})</td>
-      <td id="obk-status-${year}-${String(month).padStart(2,'0')}-${dd}">${statCell}</td>
-      <td style="text-align:left">
-        <input class="hr-note-input" type="text" value="${rec.note||''}"
-          onchange="hrSetData('obk',${year},${month},'${dd}','note',this.value);showToast('비고 저장됐어요 ✓');"
-          placeholder="">
-      </td>
-    </tr>`;
-  }
-
-  // 합계
-  rows+=`<tr class="sum-row" id="obk-sum-row">
-    <td>합계</td>
-    <td id="obk-sum-txt">출근 ${workDays}일 / 결근 ${offDays}일 / 연차 ${vacDays}일</td>
-    <td></td>
-  </tr>`;
-
-  document.getElementById('hr-tbody').innerHTML=rows;
-}
-
-// ── KPI 업데이트 ───────────────────────────────────────
-function hrUpdateKPI() {
-  const year=hrYear, month=hrMonth;
-  const dim=new Date(year,month,0).getDate();
-  const pianaKey = 'piana_' + year + '_' + String(month).padStart(2,'0');
-  const obkKey   = 'obk_'   + year + '_' + String(month).padStart(2,'0');
-  let kpiHTML='';
-
-  if (hrEmp==='piana') {
-    let totalSx=0,totalYr=0,totalAmt=0,workDays=0;
-    for(let d=1;d<=dim;d++){
-      const dd=String(d).padStart(2,'0');
-      // hrData 직접 참조 (hrGetData는 빈값 생성하므로 사용 안함)
-      const rec = (hrData[pianaKey] && hrData[pianaKey][dd]) ? hrData[pianaKey][dd] : null;
-      if (!rec) continue;
-      const sx=parseFloat(rec.steelx)||0;
-      const yr=parseFloat(rec.yr)||0;
-      if(sx>0||yr>0) workDays++;
-      totalSx+=sx; totalYr+=yr;
-      totalAmt+=sx*HR_RATES.steelx+yr*HR_RATES.yr;
-    }
-    kpiHTML=`
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">총 근무일수</div>
-        <div class="hr-kpi-value" style="color:#1a1a1a">${workDays}일</div>
-        <div class="hr-kpi-sub">${month}월 기준</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">스틸엑스 공수</div>
-        <div class="hr-kpi-value" style="color:#27500A">${totalSx}공수</div>
-        <div class="hr-kpi-sub">₩${(totalSx*HR_RATES.steelx).toLocaleString()}</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">YR 공수</div>
-        <div class="hr-kpi-value" style="color:#185FA5">${totalYr}공수</div>
-        <div class="hr-kpi-sub">₩${(totalYr*HR_RATES.yr).toLocaleString()}</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">월 총 급여</div>
-        <div class="hr-kpi-value" style="color:#E24B4A">₩${totalAmt.toLocaleString()}</div>
-        <div class="hr-kpi-sub">세전 기준</div>
-      </div>`;
-  } else {
-    let workDays=0,offDays=0,vacDays=0,totalDays=0;
-    for(let d=1;d<=dim;d++){
-      const dt=new Date(year,month-1,d);
-      if(dt.getDay()!==0&&dt.getDay()!==6) totalDays++;
-      const dd=String(d).padStart(2,'0');
-      const rec=(hrData[obkKey]&&hrData[obkKey][dd])?hrData[obkKey][dd]:null;
-      if(!rec) continue;
-      if(rec.status==='출근') workDays++;
-      if(rec.status==='결근') offDays++;
-      if(rec.status==='연차') vacDays++;
-    }
-    kpiHTML=`
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">출근일수</div>
-        <div class="hr-kpi-value" style="color:#1D9E75">${workDays}일</div>
-        <div class="hr-kpi-sub">평일 기준 ${totalDays}일</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">결근일수</div>
-        <div class="hr-kpi-value" style="color:#E24B4A">${offDays}일</div>
-        <div class="hr-kpi-sub">${month}월 기준</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">연차 사용</div>
-        <div class="hr-kpi-value" style="color:#EF9F27">${vacDays}일</div>
-        <div class="hr-kpi-sub">누적 확인 필요</div>
-      </div>
-      <div class="hr-kpi">
-        <div class="hr-kpi-label">출근율</div>
-        <div class="hr-kpi-value" style="color:#534AB7">${totalDays>0?Math.round(workDays/totalDays*100):0}%</div>
-        <div class="hr-kpi-sub">평일 대비</div>
-      </div>`;
-  }
-  document.getElementById('hr-kpi-row').innerHTML=kpiHTML;
-
-  // 합계 행 즉시 업데이트 (피안나)
-  if (hrEmp === 'piana') {
-    const sxEl  = document.getElementById('piana-sum-sx');
-    const yrEl  = document.getElementById('piana-sum-yr');
-    const amtEl = document.getElementById('piana-sum-amt');
-    if (sxEl && yrEl && amtEl) {
-      const pianaKey = 'piana_' + hrYear + '_' + String(hrMonth).padStart(2,'0');
-      const dim2 = new Date(hrYear, hrMonth, 0).getDate();
-      let sx2=0, yr2=0, amt2=0;
-      for (let d=1; d<=dim2; d++) {
-        const dd = String(d).padStart(2,'0');
-        const r = (hrData[pianaKey] && hrData[pianaKey][dd]) ? hrData[pianaKey][dd] : null;
-        if (!r) continue;
-        sx2  += parseFloat(r.steelx)||0;
-        yr2  += parseFloat(r.yr)||0;
-        amt2 += (parseFloat(r.steelx)||0)*HR_RATES.steelx + (parseFloat(r.yr)||0)*HR_RATES.yr;
-      }
-      sxEl.textContent  = sx2  + '공수';
-      yrEl.textContent  = yr2  + '공수';
-      amtEl.textContent = '₩' + amt2.toLocaleString();
-    }
-  }
-}
-
-// ── 엑셀 다운로드 ──────────────────────────────────────
-function hrDownloadExcel() {
-  hrLoadFromStorage();
-  const year=hrYear, month=hrMonth;
-  const dim=new Date(year,month,0).getDate();
-  const wb=XLSX.utils.book_new();
-
-  if(hrEmp==='piana'){
-    const headers=['일자','스틸엑스(공수)','YR(공수)','스틸엑스 금액','YR 금액','합계','비고'];
-    let rows=[headers];
-    let tSx=0,tYr=0,tAmt=0;
-    for(let d=1;d<=dim;d++){
-      const dt=new Date(year,month-1,d);
-      const dow=DAYS_KO[dt.getDay()];
-      const dd=String(d).padStart(2,'0');
-      const rec=(hrData[pianaKey]&&hrData[pianaKey][dd])?hrData[pianaKey][dd]:null;
-      if(!rec) continue;
-      const sx=parseFloat(rec.steelx)||0;
-      const yr=parseFloat(rec.yr)||0;
-      const amt=sx*HR_RATES.steelx+yr*HR_RATES.yr;
-      tSx+=sx;tYr+=yr;tAmt+=amt;
-      rows.push([
-        month+'월 '+d+'일 ('+dow+')',
-        sx||'',yr||'',
-        sx>0?sx*HR_RATES.steelx:'',
-        yr>0?yr*HR_RATES.yr:'',
-        amt>0?amt:'',
-        rec.note||''
-      ]);
-    }
-    rows.push(['합계',tSx,tYr,tSx*HR_RATES.steelx,tYr*HR_RATES.yr,tAmt,'']);
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:16},{wch:13},{wch:13},{wch:14},{wch:14},{wch:14},{wch:25}];
-    XLSX.utils.book_append_sheet(wb,ws,'피안나_'+month+'월');
-  } else {
-    const headers=['일자','출근상태','비고'];
-    let rows=[headers];
-    let wk=0,off=0,vac=0;
-    for(let d=1;d<=dim;d++){
-      const dt=new Date(year,month-1,d);
-      const dow=DAYS_KO[dt.getDay()];
-      const dd=String(d).padStart(2,'0');
-      const dlObkKey='obk_'+year+'_'+String(month).padStart(2,'0');
-      const rec=(hrData[dlObkKey]&&hrData[dlObkKey][dd])?hrData[dlObkKey][dd]:{status:'',note:''};
-      if(rec.status==='출근')wk++;
-      if(rec.status==='결근')off++;
-      if(rec.status==='연차')vac++;
-      rows.push([month+'월 '+d+'일 ('+dow+')',rec.status||'',rec.note||'']);
-    }
-    rows.push(['합계','출근 '+wk+'일 / 결근 '+off+'일 / 연차 '+vac+'일','']);
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:16},{wch:20},{wch:30}];
-    XLSX.utils.book_append_sheet(wb,ws,'오병조공장장_'+month+'월');
-  }
-
-  const today=new Date();
-  const ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-  const empName=hrEmp==='piana'?'피안나':'오병조공장장';
-  XLSX.writeFile(wb,'STEELX_직원관리_'+empName+'_'+year+'년'+month+'월_'+ds+'.xlsx');
-  showToast('📥 급여명세 다운로드 완료!');
-}
-
-
-// ── 규격 인라인 편집 ─────────────────────────────────────
-function specCellHtml(no, spec) {
-  const txt = spec || '—';
-  const cls = spec ? 'has-value' : '';
-  return `<div class="spec-cell" onclick="openSpecEdit(${no}, event)">
-    <span class="spec-text ${cls}" id="spec-txt-${no}">${txt}</span>
-    <span class="spec-edit-icon">✎</span>
-  </div>
-  <div class="spec-input-wrap" id="spec-wrap-${no}">
-    <input class="spec-input" id="spec-in-${no}" type="text"
-      value="${spec||''}"
-      placeholder="예) 2350*2250*2250"
-      onkeydown="specKeyDown(event,${no})">
-    <button class="spec-save-btn" onclick="saveSpec(${no})">저장</button>
-  </div>`;
-}
-
-function openSpecEdit(no, event) {
-  event.stopPropagation();
-  // 다른 열린 편집창 닫기
-  document.querySelectorAll('.spec-input-wrap.open').forEach(el => {
-    el.classList.remove('open');
-  });
-  const wrap = document.getElementById('spec-wrap-' + no);
-  if (wrap) {
-    wrap.classList.add('open');
-    setTimeout(function() {
-      const inp = document.getElementById('spec-in-' + no);
-      if (inp) { inp.focus(); inp.select(); }
-    }, 50);
-  }
-}
-
-function specKeyDown(event, no) {
-  if (event.key === 'Enter') { event.preventDefault(); saveSpec(no); }
-  if (event.key === 'Escape') {
-    const wrap = document.getElementById('spec-wrap-' + no);
-    if (wrap) wrap.classList.remove('open');
-  }
-}
-
-async function saveSpec(no) {
-  const inp = document.getElementById('spec-in-' + no);
-  if (!inp) return;
-  const val = inp.value.trim();
-  const d = D.find(x => x.no === no);
-  if (d) d.spec = val;
-
-  // UI 즉시 반영
-  const txtEl = document.getElementById('spec-txt-' + no);
-  if (txtEl) {
-    txtEl.textContent = val || '—';
-    txtEl.className = 'spec-text' + (val ? ' has-value' : '');
-  }
-  const wrap = document.getElementById('spec-wrap-' + no);
-  if (wrap) wrap.classList.remove('open');
-
-  // DB 저장
-  await sb.from('pit_items').update({ spec: val }).eq('no', no);
-  showToast('규격 저장됐어요 ✓');
-}
-
-// 테이블 외부 클릭 시 규격 편집창 닫기
-document.addEventListener('click', function() {
-  document.querySelectorAll('.spec-input-wrap.open').forEach(el => {
-    el.classList.remove('open');
-  });
-});
-
-
-// ── 공장장 상태 즉시 업데이트 ──────────────────
-async function hrSetOBKStatus(year, month, dd, status, el) {
-  const obkKey = 'obk_' + year + '_' + String(month).padStart(2,'0');
-  if (!hrData[obkKey]) hrData[obkKey] = {};
-  if (!hrData[obkKey][dd]) hrData[obkKey][dd] = { status:'', note:'' };
-  hrData[obkKey][dd].status = status;
-
-  // 해당 행의 상태 셀만 즉시 업데이트
-  const statusMap = {
-    '출근':  { color:'#1D9E75', bg:'#EAF3DE', border:'#1D9E75' },
-    '결근':  { color:'#E24B4A', bg:'#FCEBEB', border:'#E24B4A' },
-    '연차':  { color:'#EF9F27', bg:'#FAEEDA', border:'#EF9F27' },
-    '휴무':  { color:'#E24B4A', bg:'#FCEBEB', border:'#E24B4A' },
-  };
-
-  // 해당 날짜의 td 찾아서 업데이트
-  const tdId = 'obk-status-' + year + '-' + String(month).padStart(2,'0') + '-' + dd;
-  const td = document.getElementById(tdId);
-  if (td) {
-    if (status) {
-      const sm = statusMap[status] || {};
-      td.innerHTML = `<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer"
-        onclick="hrSetOBKStatus(${year},${month},'${dd}','',this)" title="클릭하면 초기화">
-        <span style="font-size:14px;font-weight:700;color:${sm.color};
-          background:${sm.bg};padding:4px 16px;border-radius:20px;
-          border:1.5px solid ${sm.border}">${status}</span>
-        <span style="font-size:10px;color:#ccc">✕</span>
-      </div>`;
-    } else {
-      // 버튼 4개 다시 표시
-      const statusList = ['출근','결근','연차','휴무'];
-      const icons = { '출근':'✓', '결근':'✗', '연차':'🌴', '휴무':'🔴' };
-      const cls   = { '출근':'work', '결근':'holiday', '연차':'vacation', '휴무':'holiday' };
-      td.innerHTML = '<div style="display:flex;align-items:center;gap:4px;justify-content:center">' +
-        statusList.map(s => `<button class="attend-check ${cls[s]}"
-          onclick="hrSetOBKStatus(${year},${month},'${dd}','${s}',this)"
-          title="${s}">${icons[s]}</button>`).join('') +
-        '</div>';
-    }
-  }
-
-  // 공장장 합계 행 즉시 업데이트
-  const obkSumKey = 'obk_' + year + '_' + String(month).padStart(2,'0');
-  const obkDim = new Date(year, month, 0).getDate();
-  let wkCnt=0, offCnt=0, vacCnt=0;
-  for (let d=1; d<=obkDim; d++) {
-    const ddd = String(d).padStart(2,'0');
-    const r = hrData[obkSumKey] && hrData[obkSumKey][ddd];
-    if (!r) continue;
-    if (r.status==='출근') wkCnt++;
-    if (r.status==='결근') offCnt++;
-    if (r.status==='연차') vacCnt++;
-  }
-  const obkSumEl = document.getElementById('obk-sum-txt');
-  if (obkSumEl) obkSumEl.textContent = '출근 '+wkCnt+'일 / 결근 '+offCnt+'일 / 연차 '+vacCnt+'일';
-
-  hrUpdateKPI();
-
-  // DB 저장
-  const dateStr = year + '-' + String(month).padStart(2,'0') + '-' + dd;
-  const note = (hrData[obkKey][dd] && hrData[obkKey][dd].note) || '';
-  try {
-    await sb.from('hr_obk').upsert(
-      { work_date: dateStr, status: status, note: note },
-      { onConflict: 'work_date' }
-    );
-    showToast('저장됐어요 ✓');
-  } catch(e) { console.error('OBK 저장 오류:', e); }
-}
-
-
-// ══════════════════════════════════════════════
-//  소모품 관리 — 가스 내역
-// ══════════════════════════════════════════════
-
-let supplyYear  = 2026;
-let supplyMonth = 4;
-let supplyData  = []; // 전체 가스 데이터
-let supplyDelId = null;
-
-const GAS_TYPES = ['CO2','알곤','혼합','LPG','산소'];
-const GAS_CSS   = { CO2:'co2', 알곤:'argon', 혼합:'mixed', LPG:'lpg', 산소:'oxygen' };
-const GAS_ICON  = { CO2:'🔵', 알곤:'🟣', 혼합:'🟢', LPG:'🟡', 산소:'🔴' };
-
-async function initSupply() {
-  // 오늘 날짜로 초기화
-  const today = new Date();
-  supplyYear  = today.getFullYear();
-  supplyMonth = today.getMonth() + 1;
-  await supplyLoadData();
-  supplyRender();
-}
-
-async function supplyLoadData() {
-  try {
-    const { data, error } = await sb.from('gas_records').select('*').order('req_date', { ascending: false });
-    if (error) throw error;
-    supplyData = data || [];
-  } catch(e) {
-    console.error('가스 데이터 로드 오류:', e);
-    supplyData = [];
-  }
-}
-
-function supplySelectMenu(menu, btn) {
-  document.querySelectorAll('.supply-menu-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-}
-
-function supplyMonthMove(dir) {
-  supplyMonth += dir;
-  if (supplyMonth > 12) { supplyMonth = 1; supplyYear++; }
-  if (supplyMonth < 1)  { supplyMonth = 12; supplyYear--; }
-  supplyRender();
-}
-
-function supplyRender() {
-  document.getElementById('supply-month-label').textContent = supplyYear + '년 ' + supplyMonth + '월';
-  document.getElementById('supply-table-title').textContent =
-    supplyYear + '년 ' + supplyMonth + '월 가스 신청 내역';
-
-  // 이번 달 데이터 필터
-  const monthStr = supplyYear + '-' + String(supplyMonth).padStart(2,'0');
-  const filtered = supplyData.filter(r => r.req_date && r.req_date.startsWith(monthStr));
-
-  // KPI 업데이트 (동적 가스 목록)
-  const gasTypes = getGasTypes();
-  const totals = {};
-  gasTypes.forEach(t => totals[t] = 0);
-  filtered.forEach(r => { if (totals[r.gas_type] !== undefined) totals[r.gas_type] += r.qty || 0; });
-  // KPI 카드 재렌더링
-  updateSupplyKPICards();
-  gasTypes.forEach((t, i) => {
-    const el = document.getElementById('kpi-gas-' + i);
-    if (el) el.textContent = totals[t] || 0;
-  });
-
-  // 테이블 렌더링
-  if (filtered.length === 0) {
-    document.getElementById('supply-tbody').innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';
-    return;
-  }
-
-  // 날짜별로 그룹핑
-  const grouped = {};
-  filtered.forEach(r => {
-    const d = r.req_date ? r.req_date.slice(0,10) : '미정';
-    if (!grouped[d]) grouped[d] = [];
-    grouped[d].push(r);
-  });
-
-  // 날짜 정렬 (최신순)
-  const sortedDates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
-
-  let rows = '';
-  let totalQty = 0;
-  let rowNum = 1;
-
-  sortedDates.forEach(date => {
-    const items = grouped[date];
-    const dayTotal = items.reduce((s,r) => s+(r.qty||0), 0);
-    const dt = new Date(date);
-    const days = ['일','월','화','수','목','금','토'];
-    const dayStr = date.replace(/-/g,'.') + ' (' + days[dt.getDay()] + ')';
-    const isWeekend = dt.getDay()===0||dt.getDay()===6;
-
-    // 날짜 구분 헤더
-    rows += `<tr style="background:${isWeekend?'#fff5f5':'#f8f9fa'};border-top:2px solid #e5e5e5">
-      <td colspan="6" style="padding:8px 16px;text-align:left">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <span style="font-weight:700;font-size:13px;color:${isWeekend?'#E24B4A':'#1a1a1a'}">${dayStr}</span>
-          <span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">${dayTotal}개</strong></span>
-        </div>
-      </td>
-    </tr>`;
-
-    // 해당 날짜 항목들
-    items.forEach(r => {
-      const cls = GAS_CSS[r.gas_type] || '';
-      const icon = GAS_ICON[r.gas_type] || getGasIcon(r.gas_type);
-      totalQty += r.qty||0;
-      rows += `<tr style="background:#fff">
-        <td style="color:#bbb;font-size:11px;width:40px">${rowNum++}</td>
-        <td style="color:#999;font-size:12px"></td>
-        <td><span class="gas-badge gas-${cls}" style="font-size:13px;padding:4px 14px">${icon} ${r.gas_type}</span></td>
-        <td style="font-size:16px;font-weight:800;color:#1a1a1a">${r.qty}<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>
-        <td style="text-align:left;color:#888;font-size:12px">${r.note || ''}</td>
-        <td><button class="del-btn" onclick="openSupplyDelModal(${r.id},'${r.gas_type}',${r.qty})">✕</button></td>
-      </tr>`;
-    });
-  });
-
-  // 월 합계 행
-  const gasTypes2 = getGasTypes();
-  const typeTotals = {};
-  gasTypes2.forEach(t => typeTotals[t]=0);
-  filtered.forEach(r => { if(typeTotals[r.gas_type]!==undefined) typeTotals[r.gas_type]+=r.qty||0; });
-  const typeSum = gasTypes2.filter(t=>typeTotals[t]>0).map(t=>`${getGasIcon(t)} ${t}: ${typeTotals[t]}개`).join('  |  ');
-
-  rows += `<tr class="sum-row">
-    <td colspan="2" style="text-align:left;padding-left:16px">월 합계</td>
-    <td colspan="2" style="font-size:15px">${totalQty} 개</td>
-    <td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">${typeSum}</td>
-  </tr>`;
-
-  document.getElementById('supply-tbody').innerHTML = rows;
-}
-
-// ── 모달 ────────────────────────────────────
-function openSupplyModal() {
-  // 오늘 날짜 기본값
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth()+1).padStart(2,'0');
-  const d = String(today.getDate()).padStart(2,'0');
-  document.getElementById('supply-date').value = y+'-'+m+'-'+d;
-  renderGasTypeSelect();
-  document.getElementById('supply-type').value = '';
-  document.getElementById('supply-qty').value  = '';
-  document.getElementById('supply-note').value = '';
-  document.getElementById('supply-modal').classList.add('open');
-}
-
-function closeSupplyModal() {
-  document.getElementById('supply-modal').classList.remove('open');
-}
-
-async function saveSupplyItem() {
-  const date = document.getElementById('supply-date').value;
-  const type = document.getElementById('supply-type').value;
-  const qty  = parseInt(document.getElementById('supply-qty').value);
-  const note = document.getElementById('supply-note').value.trim();
-
-  if (!date || !type || !qty || qty < 1) {
-    alert('날짜, 가스 종류, 수량은 필수 입력입니다.');
-    return;
-  }
-
-  const btn = document.querySelector('.supply-modal-save');
-  btn.textContent = '저장 중...';
-  btn.disabled = true;
-
-  try {
-    const { data, error } = await sb.from('gas_records').insert([{
-      req_date: date,
-      gas_type: type,
-      qty:      qty,
-      note:     note,
-    }]).select();
-    if (error) throw error;
-
-    supplyData.unshift(data[0]);
-    closeSupplyModal();
-
-    // 등록된 달로 이동
-    const parts = date.split('-');
-    supplyYear  = parseInt(parts[0]);
-    supplyMonth = parseInt(parts[1]);
-
-    supplyRender();
-    showToast('✅ 가스 신청이 등록됐어요!');
-  } catch(e) {
-    alert('등록 오류: ' + e.message);
-  } finally {
-    btn.textContent = '💾 등록하기';
-    btn.disabled = false;
-  }
-}
-
-// ── 삭제 ────────────────────────────────────
-function openSupplyDelModal(id, type, qty) {
-  supplyDelId = id;
-  document.getElementById('supply-del-desc').textContent =
-    type + ' ' + qty + '개 항목을 삭제하면 복구할 수 없습니다.';
-  document.getElementById('supply-del-modal').classList.add('open');
-}
-
-function closeSupplyDelModal() {
-  document.getElementById('supply-del-modal').classList.remove('open');
-  supplyDelId = null;
-}
-
-async function confirmSupplyDelete() {
-  if (!supplyDelId) return;
-  const id = supplyDelId;
-  closeSupplyDelModal();
-  try {
-    await sb.from('gas_records').delete().eq('id', id);
-    supplyData = supplyData.filter(r => r.id !== id);
-    supplyRender();
-    showToast('🗑️ 삭제됐어요');
-  } catch(e) {
-    alert('삭제 오류: ' + e.message);
-  }
-}
-
-// ── 엑셀 다운로드 ─────────────────────────────
-function supplyDownloadExcel() {
-  const monthStr = supplyYear + '-' + String(supplyMonth).padStart(2,'0');
-  const filtered = supplyData.filter(r => r.req_date && r.req_date.startsWith(monthStr));
-
-  if (filtered.length === 0) { alert('다운로드할 데이터가 없습니다.'); return; }
-
-  const wb = XLSX.utils.book_new();
-  const headers = ['No','신청일','가스종류','수량(개)','비고'];
-  const rows = [headers];
-
-  filtered.forEach((r, i) => {
-    rows.push([
-      i+1,
-      r.req_date ? r.req_date.slice(0,10).replace(/-/g,'.') : '',
-      r.gas_type,
-      r.qty,
-      r.note || '',
-    ]);
-  });
-
-  // 합계
-  const total = filtered.reduce((s,r) => s+(r.qty||0), 0);
-  rows.push(['','','합계', total, '']);
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:6},{wch:12},{wch:10},{wch:10},{wch:30}];
-  XLSX.utils.book_append_sheet(wb, ws, supplyYear+'년'+supplyMonth+'월_가스내역');
-
-  const today = new Date();
-  const ds = today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-  XLSX.writeFile(wb, 'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');
-  showToast('📥 엑셀 다운로드 완료!');
-}
-
-
-// ── 가스 종류 동적 관리 ───────────────────────────────
-// 기본 가스 목록 (localStorage에 저장)
-function getGasTypes() {
-  try {
-    const saved = localStorage.getItem('sx_gasTypes');
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return ['CO2','알곤','혼합','LPG','산소'];
-}
-
-function saveGasTypes(types) {
-  try { localStorage.setItem('sx_gasTypes', JSON.stringify(types)); } catch(e) {}
-}
-
-const GAS_ICONS_MAP = {
-  'CO2':'🔵', '알곤':'🟣', '혼합':'🟢', 'LPG':'🟡', '산소':'🔴'
-};
-function getGasIcon(name) {
-  return GAS_ICONS_MAP[name] || '⚪';
-}
-
-function renderGasTypeSelect() {
-  const sel = document.getElementById('supply-type');
-  if (!sel) return;
-  const types = getGasTypes();
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">선택</option>' +
-    types.map(t => `<option value="${t}" ${cur===t?'selected':''}>${getGasIcon(t)} ${t}</option>`).join('');
-}
-
-function openAddGasType() {
-  document.getElementById('add-gas-wrap').style.display = 'block';
-  document.getElementById('new-gas-name').value = '';
-  document.getElementById('new-gas-name').focus();
-}
-
-function closeAddGasType() {
-  document.getElementById('add-gas-wrap').style.display = 'none';
-}
-
-function confirmAddGasType() {
-  const name = document.getElementById('new-gas-name').value.trim();
-  if (!name) { alert('가스 종류 이름을 입력해주세요.'); return; }
-  const types = getGasTypes();
-  if (types.includes(name)) { alert('이미 존재하는 가스 종류예요.'); return; }
-  types.push(name);
-  saveGasTypes(types);
-  // KPI 카드도 업데이트
-  updateSupplyKPICards();
-  renderGasTypeSelect();
-  document.getElementById('supply-type').value = name;
-  closeAddGasType();
-  showToast('✅ ' + name + ' 추가됐어요!');
-}
-
-function updateSupplyKPICards() {
-  const types = getGasTypes();
-  const colors = ['co2','argon','mixed','lpg','oxygen','co2','argon','mixed'];
-  const icons  = ['🔵','🟣','🟢','🟡','🔴','🔵','🟣','🟢'];
-  const kpiRow = document.getElementById('supply-kpi-row');
-  if (!kpiRow) return;
-  kpiRow.innerHTML = types.map((t, i) => {
-    const cls = colors[i % colors.length];
-    const icon = icons[i % icons.length];
-    const id  = 'kpi-gas-' + i;
-    return `<div class="supply-kpi ${cls}">
-      <div class="supply-kpi-top">
-        <div class="supply-kpi-label">${t}</div>
-        <div class="supply-kpi-icon">${icon}</div>
-      </div>
-      <div class="supply-kpi-value" id="${id}">0</div>
-      <div class="supply-kpi-unit">개 사용</div>
-    </div>`;
-  }).join('');
-}
-
-
-// ── 가스 항목 동적 추가/삭제 ──────────────────────────
-let gasRowCount = 0;
-
-function renderGasRow(idx) {
-  const types = getGasTypes();
-  const opts = types.map(t => `<option value="${t}">${getGasIcon(t)} ${t}</option>`).join('');
-  return `<div id="gas-row-${idx}" style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center">
-    <select class="supply-form-select" id="gas-type-${idx}" style="height:40px">
-      <option value="">선택</option>${opts}
-    </select>
-    <input class="supply-form-input" type="number" id="gas-qty-${idx}" min="1" placeholder="수량" style="height:40px;text-align:center">
-    <button onclick="removeGasRow(${idx})" style="width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s"
-      onmouseover="this.style.background='#FCEBEB';this.style.borderColor='#ff9090';this.style.color='#E24B4A'"
-      onmouseout="this.style.background='#fff';this.style.borderColor='#e0e0e0';this.style.color='#ccc'">✕</button>
-  </div>`;
-}
-
-function addGasRow() {
-  const list = document.getElementById('gas-items-list');
-  if (!list) return;
-  const idx = gasRowCount++;
-  const div = document.createElement('div');
-  div.innerHTML = renderGasRow(idx);
-  list.appendChild(div.firstElementChild);
-}
-
-function removeGasRow(idx) {
-  const row = document.getElementById('gas-row-' + idx);
-  if (row) row.remove();
-  // 최소 1개 유지
-  const list = document.getElementById('gas-items-list');
-  if (list && list.children.length === 0) addGasRow();
-}
-
-// openSupplyModal 재정의
-function openSupplyModal() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth()+1).padStart(2,'0');
-  const d = String(today.getDate()).padStart(2,'0');
-  document.getElementById('supply-date').value = y+'-'+m+'-'+d;
-  document.getElementById('supply-note').value = '';
-
-  // 가스 항목 초기화 - 1개로 시작
-  gasRowCount = 0;
-  const list = document.getElementById('gas-items-list');
-  if (list) list.innerHTML = '';
-  addGasRow();
-
-  document.getElementById('supply-modal').classList.add('open');
-}
-
-// saveSupplyItem 재정의 - 여러 항목 한번에 저장
-async function saveSupplyItem() {
-  const date = document.getElementById('supply-date').value;
-  const note = document.getElementById('supply-note').value.trim();
-
-  if (!date) { alert('신청 날짜를 입력해주세요.'); return; }
-
-  // 모든 가스 항목 수집
-  const list = document.getElementById('gas-items-list');
-  const rows = list ? list.querySelectorAll('[id^="gas-row-"]') : [];
-  const items = [];
-
-  for (const row of rows) {
-    const idx = row.id.replace('gas-row-','');
-    const type = document.getElementById('gas-type-' + idx)?.value;
-    const qty  = parseInt(document.getElementById('gas-qty-'  + idx)?.value);
-    if (!type || !qty || qty < 1) continue;
-    items.push({ req_date: date, gas_type: type, qty, note });
-  }
-
-  if (items.length === 0) {
-    alert('가스 종류와 수량을 입력해주세요.');
-    return;
-  }
-
-  const btn = document.querySelector('.supply-modal-save');
-  btn.textContent = '저장 중...';
-  btn.disabled = true;
-
-  try {
-    const { data, error } = await sb.from('gas_records').insert(items).select();
-    if (error) throw error;
-
-    data.forEach(d => supplyData.unshift(d));
-    closeSupplyModal();
-
-    const parts = date.split('-');
-    supplyYear  = parseInt(parts[0]);
-    supplyMonth = parseInt(parts[1]);
-
-    supplyRender();
-    showToast('✅ ' + items.length + '건 등록됐어요!');
-  } catch(e) {
-    alert('등록 오류: ' + e.message);
-  } finally {
-    btn.textContent = '💾 등록하기';
-    btn.disabled = false;
-  }
-}
-
-</script>
-</body>
-</html>
+        </div>>
