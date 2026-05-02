@@ -3469,5 +3469,76 @@ function dateCellHtml(no, field, dateStr) {
         <div class="supply-kpi oxygen">
           <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#fca5a5"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#fca5a5"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g5)"/><rect x="8" y="12" width="20" height="30" fill="url(#g5)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g5)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g5" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f87171"/><stop offset="100%" stop-color="#991b1b"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-4">0</div>
+      <!-- 내역 테이블 -->
+      <div class="supply-table-wrap">
+        <div class="supply-table-header">
+          <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
+          <button class="hr-excel-btn" onclick="supplyDownloadExcel()">📥 엑셀 다운로드</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="supply-tbl">
+            <thead>
+              <tr>
+                <th style="min-width:40px;width:40px">No</th>
+                <th style="min-width:100px">신청일</th>
+                <th style="min-width:120px">가스 종류</th>
+                <th style="min-width:80px">수량</th>
+                <th style="min-width:160px;text-align:left">비고</th>
+                <th style="min-width:44px">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="supply-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /supply-gas -->
+  </div><!-- /supply-wrap -->
+</div><!-- /service-supply -->
+
+<!-- 가스 등록 모달 -->
+<div class="supply-modal-overlay" id="supply-modal">
+  <div class="supply-modal" style="width:500px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="supply-modal-title" style="margin-bottom:0">🔵 가스 신청 등록</div>
+      <button onclick="closeSupplyModal()" style="width:28px;height:28px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:14px;color:#666">✕</button>
+    </div>
+    <div class="supply-form-field">
+      <label class="supply-form-label">신청 날짜 *</label>
+      <input class="supply-form-input" type="date" id="supply-date">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:6px;padding:0 2px">
+      <div style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase">가스 종류 *</div>
+      <div style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase">수량 (개) *</div>
+      <div></div>
+    </div>
+    <div id="gas-items-list"></div>
+    <button onclick="addGasRow()" style="width:100%;padding:10px;border:1.5px dashed #e0e0e0;border-radius:8px;background:transparent;color:#14b8a6;font-size:13px;font-weight:600;cursor:pointer;margin:8px 0 16px"
+      onmouseover="this.style.borderColor='#14b8a6';this.style.background='#f0fdfa'"
+      onmouseout="this.style.borderColor='#e0e0e0';this.style.background='transparent'">
+      ＋ 가스 항목 추가
+    </button>
+    <div class="supply-form-field">
+      <label class="supply-form-label">비고</label>
+      <input class="supply-form-input" type="text" id="supply-note" placeholder="특이사항 입력">
+    </div>
+    <div class="supply-modal-btns">
+      <button class="supply-modal-cancel" onclick="closeSupplyModal()">취소</button>
+      <button class="supply-modal-save" onclick="saveSupplyItem()">💾 등록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 가스 삭제 확인 모달 -->
+<div class="del-modal-overlay" id="supply-del-modal">
+  <div class="del-modal">
+    <div class="del-modal-icon">🗑️</div>
+    <div class="del-modal-title">항목을 삭제할까요?</div>
+    <div class="del-modal-desc" id="supply-del-desc">삭제하면 복구할 수 없습니다.</div>
+    <div class="del-modal-btns">
+      <button class="del-modal-cancel" onclick="closeSupplyDelModal()">취소</button>
+      <button class="del-modal-confirm" onclick="confirmSupplyDelete()">삭제</button>
+    </div>
+  </div>
+</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>>
