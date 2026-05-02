@@ -3004,21 +3004,19 @@ function updateSupplyKPICards(){
 }
 
 function supplyRender(){
-  console.log('[SUPPLY] supplyRender 시작, 년월:', supplyYear, supplyMonth);
-  console.log('[SUPPLY] supplyData 건수:', supplyData.length);
-  var mlEl=document.getElementById('supply-month-label');
+var mlEl=document.getElementById('supply-month-label');
   var ttEl=document.getElementById('supply-table-title');
   if(mlEl) mlEl.textContent=supplyYear+'년 '+supplyMonth+'월';
   if(ttEl) ttEl.textContent=supplyYear+'년 '+supplyMonth+'월 가스 신청 내역';
   var monthStr=supplyYear+'-'+String(supplyMonth).padStart(2,'0');
   var filtered=supplyData.filter(function(r){return r.req_date&&r.req_date.startsWith(monthStr);});
-  console.log('[SUPPLY] monthStr:', monthStr, '필터된 건수:', filtered.length);
-  if(supplyData.length>0) console.log('[SUPPLY] 첫번째 데이터:', JSON.stringify(supplyData[0]));
   var gasTypes=getGasTypes();var totals={};gasTypes.forEach(function(t){totals[t]=0;});
   filtered.forEach(function(r){if(totals[r.gas_type]!==undefined)totals[r.gas_type]+=r.qty||0;});
   updateSupplyKPICards();
   gasTypes.forEach(function(t,i){var el=document.getElementById('kpi-gas-'+i);if(el)el.textContent=totals[t]||0;});
-  if(filtered.length===0){var tbEl=document.getElementById('supply-tbody');if(!tbEl)return;tbEl.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
+  if(filtered.length===0){var tbEl=document.getElementById('supply-tbody');
+  if(!tbEl){ setTimeout(function(){ var tb=document.getElementById('supply-tbody'); if(tb) tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>'; },100); return; }
+  tbEl.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
   var grouped={};filtered.forEach(function(r){var d=r.req_date?r.req_date.slice(0,10):'미정';if(!grouped[d])grouped[d]=[];grouped[d].push(r);});
   var sortedDates=Object.keys(grouped).sort(function(a,b){return b.localeCompare(a);});
   var rows='';var totalQty=0;var rowNum=1;
@@ -3043,7 +3041,16 @@ function supplyRender(){
   });
   var typeSum=gasTypes.filter(function(t){return totals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+totals[t]+'개';}).join('  |  ');
   rows+='<tr class="sum-row"><td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td></tr>';
-  var tbEl2=document.getElementById('supply-tbody');console.log('[SUPPLY] supply-tbody 요소:', tbEl2, 'rows 길이:', rows.length);if(tbEl2)tbEl2.innerHTML=rows;
+  var tbEl2=document.getElementById('supply-tbody');
+  if(!tbEl2){
+    // tbody가 없으면 100ms 후 재시도
+    setTimeout(function(){ 
+      var tb=document.getElementById('supply-tbody');
+      if(tb) tb.innerHTML=rows;
+    }, 100);
+  } else {
+    tbEl2.innerHTML=rows;
+  }
 }
 
 function renderGasTypeSelect(){
@@ -3482,27 +3489,7 @@ function dateCellHtml(no, field, dateStr) {
           <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon"><svg width="36" height="52" viewBox="0 0 36 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="15" y="0" width="6" height="2" rx="1" fill="#fca5a5"/><rect x="13" y="2" width="10" height="3" rx="1.5" fill="#fca5a5"/><path d="M8 12 Q8 5 18 5 Q28 5 28 12" fill="url(#g5)"/><rect x="8" y="12" width="20" height="30" fill="url(#g5)"/><path d="M8 42 Q8 50 18 50 Q28 50 28 42" fill="url(#g5)"/><rect x="11" y="8" width="5" height="28" rx="2.5" fill="rgba(255,255,255,0.25)"/><rect x="8" y="23" width="20" height="4" fill="rgba(0,0,0,0.1)"/><defs><linearGradient id="g5" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f87171"/><stop offset="100%" stop-color="#991b1b"/></linearGradient></defs></svg></div></div>
           <div class="supply-kpi-value" id="kpi-gas-4">0</div>
       <!-- 내역 테이블 -->
-      <div class="supply-table-wrap">
-        <div class="supply-table-header">
-          <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
-          <button class="hr-excel-btn" onclick="supplyDownloadExcel()">📥 엑셀 다운로드</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="supply-tbl">
-            <thead>
-              <tr>
-                <th style="min-width:40px;width:40px">No</th>
-                <th style="min-width:100px">신청일</th>
-                <th style="min-width:120px">가스 종류</th>
-                <th style="min-width:80px">수량</th>
-                <th style="min-width:160px;text-align:left">비고</th>
-                <th style="min-width:44px">삭제</th>
-              </tr>
-            </thead>
-            <tbody id="supply-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+      
 
       <!-- 내역 테이블 -->
       <div class="supply-table-wrap">
