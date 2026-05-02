@@ -3499,6 +3499,29 @@ function dateCellHtml(no, field, dateStr) {
           </table>
         </div>
       </div>
+
+      <!-- 내역 테이블 -->
+      <div class="supply-table-wrap">
+        <div class="supply-table-header">
+          <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
+          <button class="hr-excel-btn" onclick="supplyDownloadExcel()">📥 엑셀 다운로드</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="supply-tbl">
+            <thead>
+              <tr>
+                <th style="min-width:40px">No</th>
+                <th style="min-width:100px">신청일</th>
+                <th style="min-width:120px">가스 종류</th>
+                <th style="min-width:80px">수량</th>
+                <th style="min-width:160px;text-align:left">비고</th>
+                <th style="min-width:44px">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="supply-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div><!-- /supply-gas -->
   </div><!-- /supply-wrap -->
 </div><!-- /service-supply -->
