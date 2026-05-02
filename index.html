@@ -2743,24 +2743,35 @@ async function initHR(){
 }
 
 function hrRenderPiana(year, month, dim, today) {
-  document.getElementById('hr-table-title').textContent='피안나 '+year+'년 '+month+'월 근무표';
-  document.getElementById('hr-thead').innerHTML='<tr><th style="min-width:60px">일자</th><th style="min-width:110px;color:#27500A">스틸엑스 (₩120,000)</th><th style="min-width:110px;color:#185FA5">YR (₩140,000)</th><th style="min-width:100px">합계</th><th style="min-width:180px;text-align:left">비고</th></tr>';
-  var pianaKey='piana_'+year+'_'+String(month).padStart(2,'0');
-  var sumKey=pianaKey;var totalSx=0,totalYr=0,totalAmt=0;
-  var rows='';
-  for(var d=1;d<=dim;d++){
-    var dt=new Date(year,month-1,d);var dow=dt.getDay();var isWeekend=dow===0||dow===6;
-    var isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
-    var dd=String(d).padStart(2,'0');
-    var rec=(hrData[pianaKey]&&hrData[pianaKey][dd])?hrData[pianaKey][dd]:{steelx:'',yr:'',note:''};
-    var sx=parseFloat(rec.steelx)||0;var yr2=parseFloat(rec.yr)||0;
+  document.getElementById('hr-table-title').textContent = '피안나 '+year+'년 '+month+'월 근무표';
+  document.getElementById('hr-thead').innerHTML = '<tr><th style="min-width:60px">일자</th><th style="min-width:110px;color:#27500A">스틸엑스 (₩120,000)</th><th style="min-width:110px;color:#185FA5">YR (₩140,000)</th><th style="min-width:100px">합계</th><th style="min-width:180px;text-align:left">비고</th></tr>';
+  var pianaKey = 'piana_'+year+'_'+String(month).padStart(2,'0');
+  var totalSx=0, totalYr=0, totalAmt=0;
+  var rows = '';
+  var opts = ['','0.5','1','1.5','2','휴무'];
+  for (var d=1; d<=dim; d++) {
+    var dt = new Date(year,month-1,d); var dow = dt.getDay();
+    var isWeekend = dow===0||dow===6;
+    var isToday = d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
+    var dd = String(d).padStart(2,'0');
+    var rec = (hrData[pianaKey]&&hrData[pianaKey][dd]) ? hrData[pianaKey][dd] : {steelx:'',yr:'',note:''};
+    var sx=parseFloat(rec.steelx)||0, yr2=parseFloat(rec.yr)||0;
     var total=sx*HR_RATES.steelx+yr2*HR_RATES.yr;
-    totalSx+=sx;totalYr+=yr2;totalAmt+=total;
-    var totalStr=total>0?'₩'+total.toLocaleString():'₩0';var amtCls=total>0?'amount-cell':'amount-cell zero';
-    var rowCls=isToday?'today-row':isWeekend?'weekend':'';var dateCls=isWeekend?'date-col':'';
-    var sxOpts=['','0.5','1','1.5','2','휴무'].map(function(v){return '<option value="'+v+'" '+(rec.steelx===v?'selected':'')+' '+(v==='휴무'?'style="color:#E24B4A;font-weight:600"':'')+'>'+(v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
-    var yrOpts=['','0.5','1','1.5','2','휴무'].map(function(v){return '<option value="'+v+'" '+(rec.yr===v?'selected':'')+' '+(v==='휴무'?'style="color:#E24B4A;font-weight:600"':'')+'>'+(v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
-    rows+='<tr class="'+rowCls+'"><td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td><td><select class="ks-select steelx" onchange="hrSetData('piana','+year+','+month+',''+dd+'','steelx',this.value);this.className='ks-select steelx'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">'+sxOpts+'</select></td><td><select class="ks-select yr" onchange="hrSetData('piana','+year+','+month+',''+dd+'','yr',this.value);this.className='ks-select yr'+(this.value==='휴무'?' holiday':'');hrUpdateKPI();">'+yrOpts+'</select></td><td class="'+amtCls+'" id="hr-total-'+dd+'">'+totalStr+'</td><td style="text-align:left"><input class="hr-note-input" type="text" value="'+(rec.note||'')+'" onchange="hrSetData('piana','+year+','+month+',''+dd+'','note',this.value)" placeholder=""></td></tr>';
+    totalSx+=sx; totalYr+=yr2; totalAmt+=total;
+    var totalStr=total>0?'₩'+total.toLocaleString():'₩0';
+    var amtCls=total>0?'amount-cell':'amount-cell zero';
+    var rowCls=isToday?'today-row':isWeekend?'weekend':'';
+    var dateCls=isWeekend?'date-col':'';
+    var sxSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.steelx===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    var yrSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.yr===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    var noteVal=(rec.note||'').replace(/"/g,'&quot;');
+    rows+='<tr class="'+rowCls+'">';
+    rows+='<td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td>';
+    rows+='<td><select class="ks-select steelx" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="steelx" onchange="hrSetPiana(this)">'+sxSel+'</select></td>';
+    rows+='<td><select class="ks-select yr" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="yr" onchange="hrSetPiana(this)">'+yrSel+'</select></td>';
+    rows+='<td class="'+amtCls+'" id="hr-total-'+dd+'">'+totalStr+'</td>';
+    rows+='<td style="text-align:left"><input class="hr-note-input" type="text" value="'+noteVal+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onchange="hrSetPianaNote(this)" placeholder=""></td>';
+    rows+='</tr>';
   }
   rows+='<tr class="sum-row" id="piana-sum-row"><td>합계</td><td id="piana-sum-sx">'+totalSx+'공수</td><td id="piana-sum-yr">'+totalYr+'공수</td><td id="piana-sum-amt">₩'+totalAmt.toLocaleString()+'</td><td></td></tr>';
   document.getElementById('hr-tbody').innerHTML=rows;
@@ -2770,22 +2781,31 @@ function hrRenderOBK(year, month, dim, today) {
   document.getElementById('hr-table-title').textContent='오병조 공장장 '+year+'년 '+month+'월 근무현황';
   document.getElementById('hr-thead').innerHTML='<tr><th style="min-width:60px">일자</th><th style="min-width:200px">출근 상태</th><th style="min-width:200px;text-align:left">비고</th></tr>';
   var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
-  var statusMap={'출근':{color:'#1D9E75',bg:'#EAF3DE',border:'#1D9E75'},'결근':{color:'#E24B4A',bg:'#FCEBEB',border:'#E24B4A'},'연차':{color:'#EF9F27',bg:'#FAEEDA',border:'#EF9F27'},'휴무':{color:'#E24B4A',bg:'#FCEBEB',border:'#E24B4A'}};
-  var sl=['출근','결근','연차','휴무'];var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};var cls={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
-  var rows='';var wk=0,off=0,vac=0;
-  for(var d=1;d<=dim;d++){
-    var dt=new Date(year,month-1,d);var dow=dt.getDay();var isWeekend=dow===0||dow===6;
+  var sl=['출근','결근','연차','휴무'];
+  var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};
+  var clsMap={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
+  var colMap={'출근':'#1D9E75','결근':'#E24B4A','연차':'#EF9F27','휴무':'#E24B4A'};
+  var bgMap={'출근':'#EAF3DE','결근':'#FCEBEB','연차':'#FAEEDA','휴무':'#FCEBEB'};
+  var rows=''; var wk=0,off=0,vac=0;
+  for (var d=1;d<=dim;d++) {
+    var dt=new Date(year,month-1,d); var dow=dt.getDay();
+    var isWeekend=dow===0||dow===6;
     var isToday=d===today.getDate()&&month===today.getMonth()+1&&year===today.getFullYear();
     var dd=String(d).padStart(2,'0');
     var rec=(hrData[obkKey]&&hrData[obkKey][dd])?hrData[obkKey][dd]:{status:'',note:''};
     var st=rec.status||'';
-    if(st==='출근')wk++;if(st==='결근')off++;if(st==='연차')vac++;
-    var rowCls=isToday?'today-row':isWeekend?'weekend':'';var dateCls=isWeekend?'date-col':'';
+    if(st==='출근')wk++; if(st==='결근')off++; if(st==='연차')vac++;
+    var rowCls=isToday?'today-row':isWeekend?'weekend':'';
+    var dateCls=isWeekend?'date-col':'';
     var tdId='obk-status-'+year+'-'+String(month).padStart(2,'0')+'-'+dd;
+    var noteVal=(rec.note||'').replace(/"/g,'&quot;');
     var statCell='';
-    if(st){var sm=statusMap[st]||{color:'#666',bg:'#f5f5f5',border:'#ccc'};statCell='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'','',this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+sm.color+';background:'+sm.bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+sm.border+'">'+st+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';}
-    else{statCell='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+cls[s]+'" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'',''+s+'',this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';}
-    rows+='<tr class="'+rowCls+'"><td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td><td id="'+tdId+'">'+statCell+'</td><td style="text-align:left"><input class="hr-note-input" type="text" value="'+(rec.note||'')+'" onchange="hrSetData('obk','+year+','+month+',''+dd+'','note',this.value)" placeholder=""></td></tr>';
+    if(st){
+      statCell='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onclick="hrClearOBK(this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+colMap[st]+';background:'+bgMap[st]+';padding:4px 16px;border-radius:20px;border:1.5px solid '+colMap[st]+'">'+st+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';
+    } else {
+      statCell='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+clsMap[s]+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-s="'+s+'" onclick="hrClickOBK(this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';
+    }
+    rows+='<tr class="'+rowCls+'"><td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td><td id="'+tdId+'">'+statCell+'</td><td style="text-align:left"><input class="hr-note-input" type="text" value="'+noteVal+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onchange="hrSetOBKNote(this)" placeholder=""></td></tr>';
   }
   rows+='<tr class="sum-row" id="obk-sum-row"><td>합계</td><td id="obk-sum-txt">출근 '+wk+'일 / 결근 '+off+'일 / 연차 '+vac+'일</td><td></td></tr>';
   document.getElementById('hr-tbody').innerHTML=rows;
@@ -2860,31 +2880,43 @@ async function hrSetData(emp,year,month,day,field,val){
   try{await sb.from(table).upsert(recToSave,{onConflict:'work_date'});}catch(e){console.error('HR 저장 오류:',e);}
 }
 
-async function hrSetOBKStatus(year,month,dd,status,el){
+async function hrSetOBKStatus(year, month, dd, status, el) {
   var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
   if(!hrData[obkKey])hrData[obkKey]={};
   if(!hrData[obkKey][dd])hrData[obkKey][dd]={status:'',note:''};
   hrData[obkKey][dd].status=status;
-  var colors={'출근':'#1D9E75','결근':'#E24B4A','연차':'#EF9F27','휴무':'#E24B4A'};
-  var bgColors={'출근':'#EAF3DE','결근':'#FCEBEB','연차':'#FAEEDA','휴무':'#FCEBEB'};
+  var colMap={'출근':'#1D9E75','결근':'#E24B4A','연차':'#EF9F27','휴무':'#E24B4A'};
+  var bgMap={'출근':'#EAF3DE','결근':'#FCEBEB','연차':'#FAEEDA','휴무':'#FCEBEB'};
   var tdId='obk-status-'+year+'-'+String(month).padStart(2,'0')+'-'+dd;
   var td=document.getElementById(tdId);
   if(td){
+    var sl=['출근','결근','연차','휴무'];
+    var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};
+    var clsMap={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
     if(status){
-      var sm=colors[status]||'#666',bg=bgColors[status]||'#f5f5f5';
-      td.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'','',this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+sm+';background:'+bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+sm+'">'+status+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';
-    }else{
-      var sl=['출근','결근','연차','휴무'];var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};var cls={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
-      td.innerHTML='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+cls[s]+'" onclick="hrSetOBKStatus('+year+','+month+',''+dd+'',''+s+'',this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';
+      var col=colMap[status]||'#666', bg=bgMap[status]||'#f5f5f5';
+      var div=document.createElement('div');
+      div.style.cssText='display:inline-flex;align-items:center;gap:8px;cursor:pointer';
+      div.dataset.y=year; div.dataset.m=month; div.dataset.d=dd;
+      div.title='클릭하면 초기화';
+      div.setAttribute('onclick','hrClearOBK(this)');
+      div.innerHTML='<span style="font-size:14px;font-weight:700;color:'+col+';background:'+bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+col+'">'+status+'</span><span style="font-size:10px;color:#ccc">✕</span>';
+      td.innerHTML=''; td.appendChild(div);
+    } else {
+      var wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;align-items:center;gap:4px;justify-content:center';
+      wrap.innerHTML=sl.map(function(s){return '<button class="attend-check '+clsMap[s]+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-s="'+s+'" onclick="hrClickOBK(this)" title="'+s+'">'+icons[s]+'</button>';}).join('');
+      td.innerHTML=''; td.appendChild(wrap);
     }
   }
+  // 합계 업데이트
   var obkDim=new Date(year,month,0).getDate();var wkCnt=0,offCnt=0,vacCnt=0;
   for(var d=1;d<=obkDim;d++){var ddd=String(d).padStart(2,'0');var r=hrData[obkKey]&&hrData[obkKey][ddd];if(!r)continue;if(r.status==='출근')wkCnt++;if(r.status==='결근')offCnt++;if(r.status==='연차')vacCnt++;}
-  var obkSumEl=document.getElementById('obk-sum-txt');if(obkSumEl)obkSumEl.textContent='출근 '+wkCnt+'일 / 결근 '+offCnt+'일 / 연차 '+vacCnt+'일';
+  var sumEl=document.getElementById('obk-sum-txt');if(sumEl)sumEl.textContent='출근 '+wkCnt+'일 / 결근 '+offCnt+'일 / 연차 '+vacCnt+'일';
   hrUpdateKPI();
   var dateStr=year+'-'+String(month).padStart(2,'0')+'-'+dd;
   var note=(hrData[obkKey][dd]&&hrData[obkKey][dd].note)||'';
-  try{await sb.from('hr_obk').upsert({work_date:dateStr,status:status,note:note},{onConflict:'work_date'});}catch(e){console.error('OBK 저장 오류:',e);}
+  try{await sb.from('hr_obk').upsert({work_date:dateStr,status:status,note:note},{onConflict:'work_date'});}catch(e){console.error('OBK 저장:',e);}
 }
 
 function hrUpdateKPI(){
@@ -2934,7 +2966,6 @@ function hrDownloadExcel(){
 }
 
 // ── 소모품 관리 ─────────────────────────────────────────
-var hrData={},hrEmp='piana',hrYear=2026,hrMonth=4;
 var supplyYear=2026,supplyMonth=4,supplyData=[],supplyDelId=null,gasRowCount=0;
 var GAS_CSS={CO2:'co2',알곤:'argon',혼합:'mixed',LPG:'lpg',산소:'oxygen'};
 var GAS_ICON={CO2:'🔵',알곤:'🟣',혼합:'🟢',LPG:'🟡',산소:'🔴'};
@@ -2979,18 +3010,26 @@ function supplyRender(){
   var grouped={};filtered.forEach(function(r){var d=r.req_date?r.req_date.slice(0,10):'미정';if(!grouped[d])grouped[d]=[];grouped[d].push(r);});
   var sortedDates=Object.keys(grouped).sort(function(a,b){return b.localeCompare(a);});
   var rows='';var totalQty=0;var rowNum=1;
+  var days2=['일','월','화','수','목','금','토'];
   sortedDates.forEach(function(date){
     var items=grouped[date];var dayTotal=items.reduce(function(s,r){return s+(r.qty||0);},0);
-    var dt=new Date(date);var days2=['일','월','화','수','목','금','토'];var dayStr=date.replace(/-/g,'.')+'('+days2[dt.getDay()]+')';var isWeekend=dt.getDay()===0||dt.getDay()===6;
-    rows+='<tr style="background:'+(isWeekend?'#fff5f5':'#f8f9fa')+';border-top:2px solid #e5e5e5"><td colspan="6" style="padding:8px 16px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:700;font-size:13px;color:'+(isWeekend?'#E24B4A':'#1a1a1a')+'">'+dayStr+'</span><span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">'+dayTotal+'개</strong></span></div></td></tr>';
+    var dt=new Date(date);var dayStr=date.replace(/-/g,'.')+'('+days2[dt.getDay()]+')';var isWeekend=dt.getDay()===0||dt.getDay()===6;
+    var hdBg=isWeekend?'#fff5f5':'#f8f9fa';var hdColor=isWeekend?'#E24B4A':'#1a1a1a';
+    rows+='<tr style="background:'+hdBg+';border-top:2px solid #e5e5e5"><td colspan="6" style="padding:8px 16px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:700;font-size:13px;color:'+hdColor+'">'+dayStr+'</span><span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">'+dayTotal+'개</strong></span></div></td></tr>';
     items.forEach(function(r){
       var cls=GAS_CSS[r.gas_type]||'';var icon=getGasIcon(r.gas_type);totalQty+=r.qty||0;
-      rows+='<tr style="background:#fff"><td style="color:#bbb;font-size:11px;width:40px">'+rowNum+'</td><td style="color:#999;font-size:12px"></td><td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td><td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td><td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td><td><button class="del-btn" onclick="openSupplyDelModal('+r.id+',''+r.gas_type+'','+r.qty+')">✕</button></td></tr>';
+      rows+='<tr style="background:#fff">';
+      rows+='<td style="color:#bbb;font-size:11px;width:40px">'+rowNum+'</td>';
+      rows+='<td style="color:#999;font-size:12px"></td>';
+      rows+='<td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td>';
+      rows+='<td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>';
+      rows+='<td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td>';
+      rows+='<td><button class="del-btn" data-id="'+r.id+'" data-type="'+r.gas_type+'" data-qty="'+r.qty+'" onclick="openSupplyDelModalEl(this)">✕</button></td>';
+      rows+='</tr>';
       rowNum++;
     });
   });
-  var gasTypes2=getGasTypes();var typeTotals={};gasTypes2.forEach(function(t){typeTotals[t]=0;});filtered.forEach(function(r){if(typeTotals[r.gas_type]!==undefined)typeTotals[r.gas_type]+=r.qty||0;});
-  var typeSum=gasTypes2.filter(function(t){return typeTotals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+typeTotals[t]+'개';}).join('  |  ');
+  var typeSum=gasTypes.filter(function(t){return totals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+totals[t]+'개';}).join('  |  ');
   rows+='<tr class="sum-row"><td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td></tr>';
   document.getElementById('supply-tbody').innerHTML=rows;
 }
@@ -3011,11 +3050,28 @@ function confirmAddGasType(){
 }
 
 var gasRowCount=0;
-function renderGasRow(idx){
-  var types=getGasTypes();var opts=types.map(function(t){return '<option value="'+t+'">'+getGasIcon(t)+' '+t+'</option>';}).join('');
-  return '<div id="gas-row-'+idx+'" style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center"><select class="supply-form-select" id="gas-type-'+idx+'" style="height:40px"><option value="">선택</option>'+opts+'</select><input class="supply-form-input" type="number" id="gas-qty-'+idx+'" min="1" placeholder="수량" style="height:40px;text-align:center"><button onclick="removeGasRow('+idx+')" style="width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px" onmouseover="this.style.background='#FCEBEB';this.style.color='#E24B4A'" onmouseout="this.style.background='#fff';this.style.color='#ccc'">✕</button></div>';
+function renderGasRow(idx) {
+  var div = document.createElement('div');
+  div.id = 'gas-row-'+idx;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center';
+  var types = getGasTypes();
+  var sel = document.createElement('select');
+  sel.className = 'supply-form-select'; sel.id = 'gas-type-'+idx; sel.style.height = '40px';
+  sel.innerHTML = '<option value="">선택</option>'+types.map(function(t){return '<option value="'+t+'">'+getGasIcon(t)+' '+t+'</option>';}).join('');
+  var inp = document.createElement('input');
+  inp.className = 'supply-form-input'; inp.type = 'number'; inp.id = 'gas-qty-'+idx;
+  inp.min = '1'; inp.placeholder = '수량'; inp.style.cssText = 'height:40px;text-align:center';
+  var btn = document.createElement('button');
+  btn.style.cssText = 'width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px';
+  btn.textContent = '✕';
+  btn.setAttribute('data-idx', idx);
+  btn.setAttribute('onclick', 'removeGasRow('+idx+')');
+  btn.onmouseover = function(){this.style.background='#FCEBEB';this.style.color='#E24B4A';};
+  btn.onmouseout = function(){this.style.background='#fff';this.style.color='#ccc';};
+  div.appendChild(sel); div.appendChild(inp); div.appendChild(btn);
+  return div;
 }
-function addGasRow(){var list=document.getElementById('gas-items-list');if(!list)return;var idx=gasRowCount++;var div=document.createElement('div');div.innerHTML=renderGasRow(idx);list.appendChild(div.firstElementChild);}
+function addGasRow(){var list=document.getElementById('gas-items-list');if(!list)return;var idx=gasRowCount++;var row=renderGasRow(idx);list.appendChild(row);}
 function removeGasRow(idx){var row=document.getElementById('gas-row-'+idx);if(row)row.remove();var list=document.getElementById('gas-items-list');if(list&&list.children.length===0)addGasRow();}
 
 function openSupplyModal(){
@@ -3152,6 +3208,38 @@ async function toggleShipDone(no){var d=D.find(function(x){return x.no===no;});i
 
 // ── ESC 키 ───────────────────────────────────────────────
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closePanel();closeDelModal();closeDatePopup();closeLabelModal();closeSupplyDelModal();closeSupplyModal();}});
+
+
+
+
+
+function hrSetPiana(sel) {
+  var year=parseInt(sel.dataset.y), month=parseInt(sel.dataset.m), dd=sel.dataset.d, field=sel.dataset.f;
+  var val=sel.value;
+  sel.className='ks-select '+(field==='steelx'?'steelx':'yr')+(val==='휴무'?' holiday':'');
+  hrSetData('piana',year,month,dd,field,val);
+  hrUpdateKPI();
+}
+function hrSetPianaNote(inp) {
+  var year=parseInt(inp.dataset.y), month=parseInt(inp.dataset.m), dd=inp.dataset.d;
+  hrSetData('piana',year,month,dd,'note',inp.value);
+}
+
+
+function hrClickOBK(btn) {
+  hrSetOBKStatus(parseInt(btn.dataset.y),parseInt(btn.dataset.m),btn.dataset.d,btn.dataset.s,btn);
+}
+function hrClearOBK(el) {
+  hrSetOBKStatus(parseInt(el.dataset.y),parseInt(el.dataset.m),el.dataset.d,'',el);
+}
+function hrSetOBKNote(inp) {
+  hrSetData('obk',parseInt(inp.dataset.y),parseInt(inp.dataset.m),inp.dataset.d,'note',inp.value);
+}
+
+
+function openSupplyDelModalEl(btn) {
+  openSupplyDelModal(parseInt(btn.dataset.id), btn.dataset.type, parseInt(btn.dataset.qty));
+}
 
 </script>
 
