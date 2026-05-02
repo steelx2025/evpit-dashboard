@@ -3004,91 +3004,100 @@ function updateSupplyKPICards(){
 }
 
 function supplyRender(){
-var mlEl=document.getElementById('supply-month-label');
+  // 월 레이블
+  var mlEl=document.getElementById('supply-month-label');
   var ttEl=document.getElementById('supply-table-title');
   if(mlEl) mlEl.textContent=supplyYear+'년 '+supplyMonth+'월';
   if(ttEl) ttEl.textContent=supplyYear+'년 '+supplyMonth+'월 가스 신청 내역';
+
   var monthStr=supplyYear+'-'+String(supplyMonth).padStart(2,'0');
   var filtered=supplyData.filter(function(r){return r.req_date&&r.req_date.startsWith(monthStr);});
-  var gasTypes=getGasTypes();var totals={};gasTypes.forEach(function(t){totals[t]=0;});
+
+  // KPI 숫자만 업데이트 (innerHTML 교체 없이)
+  var gasTypes=getGasTypes();
+  var totals={};
+  gasTypes.forEach(function(t){totals[t]=0;});
   filtered.forEach(function(r){if(totals[r.gas_type]!==undefined)totals[r.gas_type]+=r.qty||0;});
-  updateSupplyKPICards();
-  gasTypes.forEach(function(t,i){var el=document.getElementById('kpi-gas-'+i);if(el)el.textContent=totals[t]||0;});
-  if(filtered.length===0){var tbEl=document.getElementById('supply-tbody');
-  if(!tbEl){ setTimeout(function(){ var tb=document.getElementById('supply-tbody'); if(tb) tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>'; },100); return; }
-  tbEl.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';return;}
-  var grouped={};filtered.forEach(function(r){var d=r.req_date?r.req_date.slice(0,10):'미정';if(!grouped[d])grouped[d]=[];grouped[d].push(r);});
+  
+  // KPI 카드 재생성 (숫자 포함)
+  var kpiRow=document.getElementById('supply-kpi-row');
+  if(kpiRow){
+    updateSupplyKPICards();
+    gasTypes.forEach(function(t,i){
+      var el=document.getElementById('kpi-gas-'+i);
+      if(el) el.textContent=totals[t]||0;
+    });
+  }
+
+  // tbody 직접 찾아서 업데이트
+  var tbody=document.getElementById('supply-tbody');
+  if(!tbody){
+    console.error('[SUPPLY] supply-tbody 없음!');
+    return;
+  }
+
+  if(filtered.length===0){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';
+    return;
+  }
+
+  // 날짜별 그룹핑
+  var grouped={};
+  filtered.forEach(function(r){
+    var d=r.req_date?r.req_date.slice(0,10):'미정';
+    if(!grouped[d])grouped[d]=[];
+    grouped[d].push(r);
+  });
   var sortedDates=Object.keys(grouped).sort(function(a,b){return b.localeCompare(a);});
-  var rows='';var totalQty=0;var rowNum=1;
   var days2=['일','월','화','수','목','금','토'];
+  var totalQty=0; var rowNum=1;
+
+  // tbody 직접 DOM 조작으로 구성
+  tbody.innerHTML='';
   sortedDates.forEach(function(date){
-    var items=grouped[date];var dayTotal=items.reduce(function(s,r){return s+(r.qty||0);},0);
-    var dt=new Date(date);var dayStr=date.replace(/-/g,'.')+'('+days2[dt.getDay()]+')';var isWeekend=dt.getDay()===0||dt.getDay()===6;
-    var hdBg=isWeekend?'#fff5f5':'#f8f9fa';var hdColor=isWeekend?'#E24B4A':'#1a1a1a';
-    rows+='<tr style="background:'+hdBg+';border-top:2px solid #e5e5e5"><td colspan="6" style="padding:8px 16px;text-align:left"><div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:700;font-size:13px;color:'+hdColor+'">'+dayStr+'</span><span style="font-size:12px;color:#999;font-weight:500">일계 <strong style="color:#1a1a1a">'+dayTotal+'개</strong></span></div></td></tr>';
+    var items=grouped[date];
+    var dayTotal=items.reduce(function(s,r){return s+(r.qty||0);},0);
+    var dt=new Date(date);
+    var dayStr=date.replace(/-/g,'.')+'('+days2[dt.getDay()]+')';
+    var isWeekend=dt.getDay()===0||dt.getDay()===6;
+
+    // 날짜 헤더 행
+    var hdrRow=document.createElement('tr');
+    hdrRow.style.background=isWeekend?'#fff5f5':'#f8f9fa';
+    hdrRow.style.borderTop='2px solid #e5e5e5';
+    var hdrTd=document.createElement('td');
+    hdrTd.colSpan=6;
+    hdrTd.style.cssText='padding:8px 16px;text-align:left';
+    hdrTd.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:700;font-size:13px;color:'+(isWeekend?'#E24B4A':'#1a1a1a')+'">'+dayStr+'</span><span style="font-size:12px;color:#999">일계 <strong style="color:#1a1a1a">'+dayTotal+'개</strong></span></div>';
+    hdrRow.appendChild(hdrTd);
+    tbody.appendChild(hdrRow);
+
     items.forEach(function(r){
-      var cls=GAS_CSS[r.gas_type]||'';var icon=getGasIcon(r.gas_type);totalQty+=r.qty||0;
-      rows+='<tr style="background:#fff">';
-      rows+='<td style="color:#bbb;font-size:11px;width:40px">'+rowNum+'</td>';
-      rows+='<td style="color:#999;font-size:12px"></td>';
-      rows+='<td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td>';
-      rows+='<td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>';
-      rows+='<td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td>';
-      rows+='<td><button class="del-btn" data-id="'+r.id+'" data-type="'+r.gas_type+'" data-qty="'+r.qty+'" onclick="openSupplyDelModalEl(this)">✕</button></td>';
-      rows+='</tr>';
+      var cls=GAS_CSS[r.gas_type]||'';
+      var icon=getGasIcon(r.gas_type);
+      totalQty+=r.qty||0;
+
+      var tr=document.createElement('tr');
+      tr.style.background='#fff';
+      tr.innerHTML=
+        '<td style="color:#bbb;font-size:11px;width:40px">'+rowNum+'</td>'+
+        '<td style="color:#999;font-size:12px"></td>'+
+        '<td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td>'+
+        '<td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>'+
+        '<td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td>'+
+        '<td><button class="del-btn" data-id="'+r.id+'" data-type="'+r.gas_type+'" data-qty="'+r.qty+'" onclick="openSupplyDelModalEl(this)">✕</button></td>';
+      tbody.appendChild(tr);
       rowNum++;
     });
   });
-  var typeSum=gasTypes.filter(function(t){return totals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+totals[t]+'개';}).join('  |  ');
-  rows+='<tr class="sum-row"><td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td></tr>';
-  var tbEl2=document.getElementById('supply-tbody');
-  if(!tbEl2){
-    // tbody가 없으면 100ms 후 재시도
-    setTimeout(function(){ 
-      var tb=document.getElementById('supply-tbody');
-      if(tb) tb.innerHTML=rows;
-    }, 100);
-  } else {
-    tbEl2.innerHTML=rows;
-  }
-}
 
-function renderGasTypeSelect(){
-  var sel=document.getElementById('supply-type');if(!sel)return;
-  var types=getGasTypes();var cur=sel.value;
-  sel.innerHTML='<option value="">선택</option>'+types.map(function(t){return '<option value="'+t+'" '+(cur===t?'selected':'')+'>'+getGasIcon(t)+' '+t+'</option>';}).join('');
-}
-
-function openAddGasType(){document.getElementById('add-gas-wrap').style.display='block';document.getElementById('new-gas-name').value='';document.getElementById('new-gas-name').focus();}
-function closeAddGasType(){document.getElementById('add-gas-wrap').style.display='none';}
-function confirmAddGasType(){
-  var name=document.getElementById('new-gas-name').value.trim();if(!name){alert('가스 종류 이름을 입력해주세요.');return;}
-  var types=getGasTypes();if(types.includes(name)){alert('이미 존재해요.');return;}
-  types.push(name);saveGasTypes(types);updateSupplyKPICards();renderGasTypeSelect();
-  document.getElementById('supply-type').value=name;closeAddGasType();showToast('✅ '+name+' 추가됐어요!');
-}
-
-var gasRowCount=0;
-function renderGasRow(idx) {
-  var div = document.createElement('div');
-  div.id = 'gas-row-'+idx;
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center';
-  var types = getGasTypes();
-  var sel = document.createElement('select');
-  sel.className = 'supply-form-select'; sel.id = 'gas-type-'+idx; sel.style.height = '40px';
-  sel.innerHTML = '<option value="">선택</option>'+types.map(function(t){return '<option value="'+t+'">'+getGasIcon(t)+' '+t+'</option>';}).join('');
-  var inp = document.createElement('input');
-  inp.className = 'supply-form-input'; inp.type = 'number'; inp.id = 'gas-qty-'+idx;
-  inp.min = '1'; inp.placeholder = '수량'; inp.style.cssText = 'height:40px;text-align:center';
-  var btn = document.createElement('button');
-  btn.style.cssText = 'width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px';
-  btn.textContent = '✕';
-  btn.setAttribute('data-idx', idx);
-  btn.setAttribute('onclick', 'removeGasRow('+idx+')');
-  btn.onmouseover = function(){this.style.background='#FCEBEB';this.style.color='#E24B4A';};
-  btn.onmouseout = function(){this.style.background='#fff';this.style.color='#ccc';};
-  div.appendChild(sel); div.appendChild(inp); div.appendChild(btn);
-  return div;
+  // 합계 행
+  var sumRow=document.createElement('tr');
+  sumRow.className='sum-row';
+  var gasTypes2=getGasTypes();
+  var typeSum=gasTypes2.filter(function(t){return totals[t]>0;}).map(function(t){return getGasIcon(t)+' '+t+': '+totals[t]+'개';}).join('  |  ');
+  sumRow.innerHTML='<td colspan="2" style="text-align:left;padding-left:16px">월 합계</td><td colspan="2" style="font-size:15px">'+totalQty+' 개</td><td colspan="2" style="text-align:left;font-size:11px;font-weight:400;opacity:.7">'+typeSum+'</td>';
+  tbody.appendChild(sumRow);
 }
 function addGasRow(){var list=document.getElementById('gas-items-list');if(!list)return;var idx=gasRowCount++;var row=renderGasRow(idx);list.appendChild(row);}
 function removeGasRow(idx){var row=document.getElementById('gas-row-'+idx);if(row)row.remove();var list=document.getElementById('gas-items-list');if(list&&list.children.length===0)addGasRow();}
