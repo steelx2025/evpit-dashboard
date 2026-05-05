@@ -3326,6 +3326,39 @@ function dateCellHtml(no, field, dateStr) {
   return '<div class="date-cell" onclick="' + attr + '"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">✎</span></div>';
 }
 
+
+function renderGasRow(idx) {
+  var div = document.createElement('div');
+  div.id = 'gas-row-' + idx;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 120px 32px;gap:8px;margin-bottom:8px;align-items:center';
+  var types = getGasTypes();
+  var sel = document.createElement('select');
+  sel.className = 'supply-form-select';
+  sel.id = 'gas-type-' + idx;
+  sel.style.height = '40px';
+  sel.innerHTML = '<option value="">선택</option>' + types.map(function(t){
+    return '<option value="' + t + '">' + getGasIcon(t) + ' ' + t + '</option>';
+  }).join('');
+  var inp = document.createElement('input');
+  inp.className = 'supply-form-input';
+  inp.type = 'number';
+  inp.id = 'gas-qty-' + idx;
+  inp.min = '1';
+  inp.placeholder = '수량';
+  inp.style.cssText = 'height:40px;text-align:center';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.style.cssText = 'width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center';
+  btn.textContent = '✕';
+  btn.onclick = function(){ removeGasRow(idx); };
+  btn.onmouseover = function(){ this.style.background='#FCEBEB'; this.style.color='#E24B4A'; };
+  btn.onmouseout = function(){ this.style.background='#fff'; this.style.color='#ccc'; };
+  div.appendChild(sel);
+  div.appendChild(inp);
+  div.appendChild(btn);
+  return div;
+}
+
 </script>
 
 
