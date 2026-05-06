@@ -2135,7 +2135,7 @@ function subscribeRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_items' }, payload => {
       const idx = D.findIndex(d => d.id === payload.new?.id);
       if (payload.eventType === 'UPDATE' && idx >= 0) D[idx] = payload.new;
-      updateSyncTime(); refreshAll(); showToast('[박스] 자재 정보가 업데이트됐어요');
+      updateSyncTime(); refreshAll(); showToast('📦 자재 정보가 업데이트됐어요');
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pit_steps' }, payload => {
       if (payload.new) stepState[payload.new.item_no] = { pre: payload.new.pre, bp: payload.new.bp, sp: payload.new.sp, weld: payload.new.weld };
@@ -2143,7 +2143,7 @@ function subscribeRealtime() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'settle_status' }, payload => {
       if (payload.new) settle[payload.new.month] = { on: payload.new.settled, note: payload.new.note || '' };
-      updateSyncTime(); renderRev(); showToast('[금액] 정산 정보가 업데이트됐어요');
+      updateSyncTime(); renderRev(); showToast('💰 정산 정보가 업데이트됐어요');
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hr_piana' }, async payload => {
       if (payload.new) {
@@ -2157,7 +2157,7 @@ function subscribeRealtime() {
         // 현재 직원관리 화면이 열려있으면 리렌더
         const hrSvc = document.getElementById('service-hr');
         if (hrSvc && hrSvc.style.display !== 'none' && hrEmp === 'piana') {
-          hrRender(); showToast('[직원] 피안나 근무표가 업데이트됐어요');
+          hrRender(); showToast('👤 피안나 근무표가 업데이트됐어요');
         }
       }
     })
@@ -2172,7 +2172,7 @@ function subscribeRealtime() {
         hrData[key][dd] = { status: d.status||'', note: d.note||'' };
         const hrSvc = document.getElementById('service-hr');
         if (hrSvc && hrSvc.style.display !== 'none' && hrEmp === 'obk') {
-          hrRender(); showToast('[직원] 공장장 근무표가 업데이트됐어요');
+          hrRender(); showToast('👤 공장장 근무표가 업데이트됐어요');
         }
       }
     })
@@ -2280,7 +2280,7 @@ async function setMat(val) {
   closeMatPopup();
   initKPI(); renderTable();
   await sb.from('pit_items').update(update).eq('no', no);
-  showToast('저장됐어요 v');
+  showToast('저장됐어요 ✓');
 }
 function showDatePicker() {
   document.getElementById('mat-date-section').style.display = 'block';
@@ -2301,12 +2301,12 @@ function matCellHtml(no, field) {
   if (val === '완료') { cls = 'mat-done'; txt = '완료'; }
   else if (val === '미정') { cls = 'mat-none'; txt = '미정'; }
   else if (val) { cls = 'mat-date'; txt = val; }
-  return `<div class="mat-cell" onclick="openMatPopup(${no},'${field}',event)"><span class="mat-val ${cls}">${txt}</span><span class="mat-edit-icon">[편집]</span></div>`;
+  return `<div class="mat-cell" onclick="openMatPopup(${no},'${field}',event)"><span class="mat-val ${cls}">${txt}</span><span class="mat-edit-icon">✎</span></div>`;
 }
 
 function ckBtn(no, key) {
   const done = stepState[no]?.[key];
-  return `<button class="ck ${done?'ck-done':'ck-wait'}" onclick="toggleStep(${no},'${key}')">${done?'v':'—'}</button>`;
+  return `<button class="ck ${done?'ck-done':'ck-wait'}" onclick="toggleStep(${no},'${key}')">${done?'✓':'—'}</button>`;
 }
 
 // ── KPI ────────────────────────────────────────────────────
@@ -2379,8 +2379,8 @@ function renderTable() {
       <td style="padding:4px 8px">${dateCellHtml(d.no,'ad',d.ad)}</td>
       <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
       <td class="left" style="padding:6px 10px">${noteCellHtml(d.no, d.note)}</td>
-      <td style="text-align:center"><button class="print-btn" onclick="openLabelModal(${d.no})" title="부착표지 인쇄">[인쇄]</button></td>
-      <td><button class="del-btn" onclick="openDelModal(${d.no},'${d.pit}','${d.site}')" title="삭제">x</button></td>
+      <td style="text-align:center"><button class="print-btn" onclick="openLabelModal(${d.no})" title="부착표지 인쇄">🖨</button></td>
+      <td><button class="del-btn" onclick="openDelModal(${d.no},'${d.pit}','${d.site}')" title="삭제">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -2389,7 +2389,7 @@ function renderTable() {
 const STEPS = [{key:'pre',label:'사전작업'},{key:'bp',label:'바닥판'},{key:'sp',label:'측면판'},{key:'weld',label:'용접'}];
 function buildCard(d, ac, sh) {
   const st = getStatus(d);
-  const s = sh ? `<div class="card-divider"></div><div style="font-size:10px;color:#999;margin-bottom:6px">공정 단계</div><div class="step-row">${STEPS.map(s=>{const dn=stepState[d.no]?.[s.key];return`<div class="step-item"><div class="step-dot ${dn?'sd-done':'sd-wait'}">${dn?'v':'·'}</div><div class="step-label ${dn?'done':''}">${s.label}</div></div>`;}).join('')}</div>` : '';
+  const s = sh ? `<div class="card-divider"></div><div style="font-size:10px;color:#999;margin-bottom:6px">공정 단계</div><div class="step-row">${STEPS.map(s=>{const dn=stepState[d.no]?.[s.key];return`<div class="step-item"><div class="step-dot ${dn?'sd-done':'sd-wait'}">${dn?'✓':'·'}</div><div class="step-label ${dn?'done':''}">${s.label}</div></div>`;}).join('')}</div>` : '';
   return `<div class="item-card" style="border-left:3px solid ${ac}">
     <div class="card-top"><div><div class="card-pit">${d.pit}</div><div class="card-gu">${d.gu}</div></div><span class="pill ${st.cls}">${st.label}</span></div>
     <div class="card-site">${d.site} · ${d.dong}</div>
@@ -2514,7 +2514,7 @@ function renderRev() {
   document.getElementById('rv-done-s').textContent=sdC+'개월 완료';
   document.getElementById('rv-left').textContent=((totalAll-sdT)/10000).toLocaleString()+'만원';
   document.getElementById('rv-left-s').textContent=(5-sdC)+'개월 대기';
-  document.getElementById('ks-rev').textContent=sdC>0?`정산완료 ${sdC}개월`:'매출·정산 보기 &rarr;';
+  document.getElementById('ks-rev').textContent=sdC>0?`정산완료 ${sdC}개월`:'매출·정산 보기 →';
   document.getElementById('barchart').innerHTML=md.map(d=>{
     const pct=Math.round(d.total/maxA*100), on=settle[d.m]?.on;
     return `<div class="bar-row"><span style="font-size:12px;color:#999;min-width:28px">${d.m}</span><div class="bar-out"><div class="bar-in" style="width:${pct}%;background:${on?'#1D9E75':'#378ADD'};color:${on?'#27500A':'#0C447C'}">${d.cnt}건</div></div><span style="font-size:12px;min-width:60px;text-align:right;color:#999">${(d.total/10000).toLocaleString()}만</span><span class="sbdg ${on?'sbdg-y':'sbdg-n'}">${on?'정산완료':'미정산'}</span></div>`;
@@ -2545,7 +2545,7 @@ async function toggleSettle(m) {
   settle[m].on = !settle[m].on;
   renderRev();
   await sb.from('settle_status').update({ settled: settle[m].on }).eq('month', m);
-  showToast('저장됐어요 v');
+  showToast('저장됐어요 ✓');
 }
 async function saveNote(m, val) {
   if (!settle[m]) settle[m] = { on: false, note: '' };
@@ -2577,7 +2577,7 @@ function noteCellHtml(no, note) {
   const cls = note ? 'has-value' : '';
   return `<div class="note-cell" onclick="openNoteEdit(${no}, event)">
     <span class="note-text ${cls}" id="note-txt-${no}">${txt}</span>
-    <span class="note-edit-icon">[편집]</span>
+    <span class="note-edit-icon">✎</span>
   </div>
   <div class="note-input-wrap" id="note-wrap-${no}">
     <textarea class="note-textarea" id="note-ta-${no}" rows="2" onkeydown="noteKeyDown(event,${no})">${note||''}</textarea>
@@ -2630,7 +2630,7 @@ async function saveNoteInline(no) {
   closeNoteEdit(no, true);
   // DB 저장
   await sb.from('pit_items').update({ note: val }).eq('no', no);
-  showToast('비고 저장됐어요 v');
+  showToast('비고 저장됐어요 ✓');
 }
 
 // 테이블 외부 클릭 시 편집창 닫기
@@ -2762,8 +2762,8 @@ function hrRenderPiana(year, month, dim, today) {
     var amtCls=total>0?'amount-cell':'amount-cell zero';
     var rowCls=isToday?'today-row':isWeekend?'weekend':'';
     var dateCls=isWeekend?'date-col':'';
-    var sxSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.steelx===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'[●] 휴무':v+'공수')+'</option>';}).join('');
-    var yrSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.yr===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'[●] 휴무':v+'공수')+'</option>';}).join('');
+    var sxSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.steelx===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    var yrSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.yr===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
     var noteVal=(rec.note||'').replace(/"/g,'&quot;');
     rows+='<tr class="'+rowCls+'">';
     rows+='<td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td>';
@@ -2782,7 +2782,7 @@ function hrRenderOBK(year, month, dim, today) {
   document.getElementById('hr-thead').innerHTML='<tr><th style="min-width:60px">일자</th><th style="min-width:200px">출근 상태</th><th style="min-width:200px;text-align:left">비고</th></tr>';
   var obkKey='obk_'+year+'_'+String(month).padStart(2,'0');
   var sl=['출근','결근','연차','휴무'];
-  var icons={'출근':'v','결근':'x','연차':'[연차]','휴무':'O2'};
+  var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};
   var clsMap={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
   var colMap={'출근':'#1D9E75','결근':'#E24B4A','연차':'#EF9F27','휴무':'#E24B4A'};
   var bgMap={'출근':'#EAF3DE','결근':'#FCEBEB','연차':'#FAEEDA','휴무':'#FCEBEB'};
@@ -2801,7 +2801,7 @@ function hrRenderOBK(year, month, dim, today) {
     var noteVal=(rec.note||'').replace(/"/g,'&quot;');
     var statCell='';
     if(st){
-      statCell='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onclick="hrClearOBK(this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+colMap[st]+';background:'+bgMap[st]+';padding:4px 16px;border-radius:20px;border:1.5px solid '+colMap[st]+'">'+st+'</span><span style="font-size:10px;color:#ccc">x</span></div>';
+      statCell='<div style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onclick="hrClearOBK(this)" title="클릭하면 초기화"><span style="font-size:14px;font-weight:700;color:'+colMap[st]+';background:'+bgMap[st]+';padding:4px 16px;border-radius:20px;border:1.5px solid '+colMap[st]+'">'+st+'</span><span style="font-size:10px;color:#ccc">✕</span></div>';
     } else {
       statCell='<div style="display:flex;align-items:center;gap:4px;justify-content:center">'+sl.map(function(s){return '<button class="attend-check '+clsMap[s]+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-s="'+s+'" onclick="hrClickOBK(this)" title="'+s+'">'+icons[s]+'</button>';}).join('')+'</div>';
     }
@@ -2891,7 +2891,7 @@ async function hrSetOBKStatus(year, month, dd, status, el) {
   var td=document.getElementById(tdId);
   if(td){
     var sl=['출근','결근','연차','휴무'];
-    var icons={'출근':'v','결근':'x','연차':'[연차]','휴무':'O2'};
+    var icons={'출근':'✓','결근':'✗','연차':'🌴','휴무':'🔴'};
     var clsMap={'출근':'work','결근':'holiday','연차':'vacation','휴무':'holiday'};
     if(status){
       var col=colMap[status]||'#666', bg=bgMap[status]||'#f5f5f5';
@@ -2900,7 +2900,7 @@ async function hrSetOBKStatus(year, month, dd, status, el) {
       div.dataset.y=year; div.dataset.m=month; div.dataset.d=dd;
       div.title='클릭하면 초기화';
       div.setAttribute('onclick','hrClearOBK(this)');
-      div.innerHTML='<span style="font-size:14px;font-weight:700;color:'+col+';background:'+bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+col+'">'+status+'</span><span style="font-size:10px;color:#ccc">x</span>';
+      div.innerHTML='<span style="font-size:14px;font-weight:700;color:'+col+';background:'+bg+';padding:4px 16px;border-radius:20px;border:1.5px solid '+col+'">'+status+'</span><span style="font-size:10px;color:#ccc">✕</span>';
       td.innerHTML=''; td.appendChild(div);
     } else {
       var wrap=document.createElement('div');
@@ -2962,17 +2962,17 @@ function hrDownloadExcel(){
   var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
   var empName=hrEmp==='piana'?'피안나':'오병조공장장';
   XLSX.writeFile(wb,'STEELX_직원관리_'+empName+'_'+year+'년'+month+'월_'+ds+'.xlsx');
-  showToast('[다운] 급여명세 다운로드 완료!');
+  showToast('📥 급여명세 다운로드 완료!');
 }
 
 // ── 소모품 관리 ─────────────────────────────────────────
 var supplyYear=2026,supplyMonth=4,supplyData=[],supplyDelId=null,gasRowCount=0;
 var GAS_CSS={CO2:'co2',알곤:'argon',혼합:'mixed',LPG:'lpg',산소:'oxygen'};
-var GAS_ICON={CO2:'CO2',알곤:'Ar',혼합:'Mix',LPG:'LPG',산소:'O2'};
+var GAS_ICON={CO2:'🔵',알곤:'🟣',혼합:'🟢',LPG:'🟡',산소:'🔴'};
 
 function getGasTypes(){try{var s=localStorage.getItem('sx_gasTypes');if(s)return JSON.parse(s);}catch(e){}return['CO2','알곤','혼합','LPG','산소'];}
 function saveGasTypes(types){try{localStorage.setItem('sx_gasTypes',JSON.stringify(types));}catch(e){}}
-function getGasIcon(name){var m={'CO2':'[CO2]','알곤':'[Ar]','혼합':'[Mix]','LPG':'[LPG]','산소':'[O2]'};return m[name]||'';}
+function getGasIcon(name){return GAS_ICON[name]||'⚪';}
 
 async function initSupply(){
   var today=new Date();supplyYear=today.getFullYear();supplyMonth=today.getMonth()+1;
@@ -2993,7 +2993,7 @@ function supplyMonthMove(dir){
 function updateSupplyKPICards(){
   var types=getGasTypes();
   var colors=['co2','argon','mixed','lpg','oxygen','co2','argon'];
-  var TANK_SVGS=['CO2','Ar','Mix','LPG','O2','CO2','Ar'];
+  var TANK_SVGS=['🔵','🟣','🟢','🟡','🔴','🔵','🟣'];
   var kpiRow=document.getElementById('supply-kpi-row');if(!kpiRow)return;
   kpiRow.innerHTML=types.map(function(t,i){
     var cls=colors[i%colors.length];
@@ -3037,7 +3037,7 @@ function supplyRender(){
   }
 
   if(filtered.length===0){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">[목록] 이번 달 신청 내역이 없어요</td></tr>';
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:3rem;color:#999;font-size:14px">📋 이번 달 신청 내역이 없어요</td></tr>';
     return;
   }
 
@@ -3085,7 +3085,7 @@ function supplyRender(){
         '<td><span class="gas-badge gas-'+cls+'" style="font-size:13px;padding:4px 14px">'+icon+' '+r.gas_type+'</span></td>'+
         '<td style="font-size:16px;font-weight:800;color:#1a1a1a">'+r.qty+'<span style="font-size:12px;color:#999;font-weight:400;margin-left:2px">개</span></td>'+
         '<td style="text-align:left;color:#888;font-size:12px">'+(r.note||'')+'</td>'+
-        '<td><button class="del-btn" data-id="'+r.id+'" data-type="'+r.gas_type+'" data-qty="'+r.qty+'" onclick="openSupplyDelModalEl(this)">x</button></td>';
+        '<td><button class="del-btn" data-id="'+r.id+'" data-type="'+r.gas_type+'" data-qty="'+r.qty+'" onclick="openSupplyDelModalEl(this)">✕</button></td>';
       tbody.appendChild(tr);
       rowNum++;
     });
@@ -3123,14 +3123,14 @@ async function saveSupplyItem(){
     var parts=date.split('-');supplyYear=parseInt(parts[0]);supplyMonth=parseInt(parts[1]);
     supplyRender();showToast('✅ '+items.length+'건 등록됐어요!');
   }catch(e){alert('등록 오류: '+e.message);}
-  finally{btn.textContent='[저장] 등록하기';btn.disabled=false;}
+  finally{btn.textContent='💾 등록하기';btn.disabled=false;}
 }
 
 function openSupplyDelModal(id,type,qty){supplyDelId=id;document.getElementById('supply-del-desc').textContent=type+' '+qty+'개 항목을 삭제하면 복구할 수 없습니다.';document.getElementById('supply-del-modal').classList.add('open');}
 function closeSupplyDelModal(){document.getElementById('supply-del-modal').classList.remove('open');supplyDelId=null;}
 async function confirmSupplyDelete(){
   if(!supplyDelId)return;var id=supplyDelId;closeSupplyDelModal();
-  try{await sb.from('gas_records').delete().eq('id',id);supplyData=supplyData.filter(function(r){return r.id!==id;});supplyRender();showToast('[삭제]️ 삭제됐어요');}
+  try{await sb.from('gas_records').delete().eq('id',id);supplyData=supplyData.filter(function(r){return r.id!==id;});supplyRender();showToast('🗑️ 삭제됐어요');}
   catch(e){alert('삭제 오류: '+e.message);}
 }
 
@@ -3144,7 +3144,7 @@ function supplyDownloadExcel(){
   var ws=XLSX.utils.aoa_to_sheet(rows2);ws['!cols']=[{wch:6},{wch:12},{wch:10},{wch:10},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws,supplyYear+'년'+supplyMonth+'월_가스내역');
   var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-  XLSX.writeFile(wb,'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');showToast('[다운] 엑셀 다운로드 완료!');
+  XLSX.writeFile(wb,'STEELX_가스내역_'+supplyYear+'년'+supplyMonth+'월_'+ds+'.xlsx');showToast('📥 엑셀 다운로드 완료!');
 }
 
 // ── 항목 추가/삭제 (EV PIT) ──────────────────────────────
@@ -3168,7 +3168,7 @@ async function saveNewItem(){
     await sb.from('pit_steps').insert([{item_no:newNo,pre:false,bp:false,sp:false,weld:false}]);
     closePanel();initKPI();updateDlDropdown();renderTable();renderDoneCards();renderWaitCards();renderMfgCards();renderDL();renderSites();showToast('✅ 새 항목이 추가됐어요!');
   }catch(e){console.error(e);alert('저장 중 오류: '+e.message);}
-  finally{btn.textContent='[저장] 저장하기';btn.disabled=false;}
+  finally{btn.textContent='💾 저장하기';btn.disabled=false;}
 }
 
 var deleteTargetNo=null;
@@ -3176,7 +3176,7 @@ function openDelModal(no,pit,site){deleteTargetNo=no;document.getElementById('de
 function closeDelModal(){document.getElementById('del-modal').classList.remove('open');deleteTargetNo=null;}
 async function confirmDelete(){
   if(!deleteTargetNo)return;var no=deleteTargetNo;closeDelModal();
-  try{await sb.from('pit_steps').delete().eq('item_no',no);await sb.from('pit_items').delete().eq('no',no);var idx=D.findIndex(function(d){return d.no===no;});if(idx>=0)D.splice(idx,1);delete matState[no];delete stepState[no];initKPI();renderTable();renderDoneCards();renderWaitCards();renderMfgCards();renderDL();renderSites();showToast('[삭제]️ 항목이 삭제됐어요');}
+  try{await sb.from('pit_steps').delete().eq('item_no',no);await sb.from('pit_items').delete().eq('no',no);var idx=D.findIndex(function(d){return d.no===no;});if(idx>=0)D.splice(idx,1);delete matState[no];delete stepState[no];initKPI();renderTable();renderDoneCards();renderWaitCards();renderMfgCards();renderDL();renderSites();showToast('🗑️ 항목이 삭제됐어요');}
   catch(e){console.error(e);alert('삭제 오류: '+e.message);}
 }
 
@@ -3191,14 +3191,14 @@ function openDatePopup(no,field,event){
   setTimeout(function(){document.getElementById('date-popup-input').focus();},100);
 }
 function closeDatePopup(){document.getElementById('date-popup').style.display='none';document.getElementById('date-overlay').style.display='none';document.getElementById('date-overlay').classList.remove('active');_dateTarget=null;}
-async function saveDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var val=document.getElementById('date-popup-input').value;var d=D.find(function(x){return x.no===no;});if(!d)return;var update={};update[field]=val||null;d[field]=val||null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('[날짜] 날짜 저장됐어요 v');}
-async function clearDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var d=D.find(function(x){return x.no===no;});if(d)d[field]=null;var update={};update[field]=null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('[날짜] 날짜 삭제됐어요');}
+async function saveDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var val=document.getElementById('date-popup-input').value;var d=D.find(function(x){return x.no===no;});if(!d)return;var update={};update[field]=val||null;d[field]=val||null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('📅 날짜 저장됐어요 ✓');}
+async function clearDate(){if(!_dateTarget)return;var no=_dateTarget.no,field=_dateTarget.field;var d=D.find(function(x){return x.no===no;});if(d)d[field]=null;var update={};update[field]=null;closeDatePopup();renderTable();await sb.from('pit_items').update(update).eq('no',no);showToast('📅 날짜 삭제됐어요');}
 
 // ── 규격 편집 ─────────────────────────────────────────────
-function specCellHtml(no,spec){var txt=spec||'—';var cls=spec?'has-value':'';return '<div class="spec-cell" onclick="openSpecEdit('+no+', event)"><span class="spec-text '+cls+'" id="spec-txt-'+no+'">'+txt+'</span><span class="spec-edit-icon">[편집]</span></div><div class="spec-input-wrap" id="spec-wrap-'+no+'"><input class="spec-input" id="spec-in-'+no+'" type="text" value="'+(spec||'')+'" placeholder="예) 2350*2250*2250" onkeydown="specKeyDown(event,'+no+')"><button class="spec-save-btn" onclick="saveSpec('+no+')">저장</button></div>';}
+function specCellHtml(no,spec){var txt=spec||'—';var cls=spec?'has-value':'';return '<div class="spec-cell" onclick="openSpecEdit('+no+', event)"><span class="spec-text '+cls+'" id="spec-txt-'+no+'">'+txt+'</span><span class="spec-edit-icon">✎</span></div><div class="spec-input-wrap" id="spec-wrap-'+no+'"><input class="spec-input" id="spec-in-'+no+'" type="text" value="'+(spec||'')+'" placeholder="예) 2350*2250*2250" onkeydown="specKeyDown(event,'+no+')"><button class="spec-save-btn" onclick="saveSpec('+no+')">저장</button></div>';}
 function openSpecEdit(no,event){event.stopPropagation();document.querySelectorAll('.spec-input-wrap.open').forEach(function(el){el.classList.remove('open');});var wrap=document.getElementById('spec-wrap-'+no);if(wrap){wrap.classList.add('open');setTimeout(function(){var inp=document.getElementById('spec-in-'+no);if(inp){inp.focus();inp.select();}},50);}}
 function specKeyDown(event,no){if(event.key==='Enter'){event.preventDefault();saveSpec(no);}if(event.key==='Escape'){var wrap=document.getElementById('spec-wrap-'+no);if(wrap)wrap.classList.remove('open');}}
-async function saveSpec(no){var inp=document.getElementById('spec-in-'+no);if(!inp)return;var val=inp.value.trim();var d=D.find(function(x){return x.no===no;});if(d)d.spec=val;var txtEl=document.getElementById('spec-txt-'+no);if(txtEl){txtEl.textContent=val||'—';txtEl.className='spec-text'+(val?' has-value':'');}var wrap=document.getElementById('spec-wrap-'+no);if(wrap)wrap.classList.remove('open');await sb.from('pit_items').update({spec:val}).eq('no',no);showToast('규격 저장됐어요 v');}
+async function saveSpec(no){var inp=document.getElementById('spec-in-'+no);if(!inp)return;var val=inp.value.trim();var d=D.find(function(x){return x.no===no;});if(d)d.spec=val;var txtEl=document.getElementById('spec-txt-'+no);if(txtEl){txtEl.textContent=val||'—';txtEl.className='spec-text'+(val?' has-value':'');}var wrap=document.getElementById('spec-wrap-'+no);if(wrap)wrap.classList.remove('open');await sb.from('pit_items').update({spec:val}).eq('no',no);showToast('규격 저장됐어요 ✓');}
 document.addEventListener('click',function(){document.querySelectorAll('.spec-input-wrap.open').forEach(function(el){el.classList.remove('open');});});
 
 // ── 부착표지 ─────────────────────────────────────────────
@@ -3223,9 +3223,9 @@ function downloadExcel(){
     ws['!cols']=[{wch:6},{wch:22},{wch:8},{wch:6},{wch:8},{wch:20},{wch:12},{wch:12},{wch:8},{wch:13},{wch:30}];
     XLSX.utils.book_append_sheet(wb,ws,filterName);
     var today=new Date();var ds=today.getFullYear()+String(today.getMonth()+1).padStart(2,'0')+String(today.getDate()).padStart(2,'0');
-    XLSX.writeFile(wb,'STEELX_EVPIT_'+filterName+'_'+ds+'.xlsx');showToast('[다운] 엑셀 파일 다운로드 완료!');
+    XLSX.writeFile(wb,'STEELX_EVPIT_'+filterName+'_'+ds+'.xlsx');showToast('📥 엑셀 파일 다운로드 완료!');
   }catch(e){console.error(e);alert('엑셀 생성 오류: '+e.message);}
-  finally{btn.disabled=false;btn.textContent='[다운] 엑셀 다운로드';}
+  finally{btn.disabled=false;btn.textContent='📥 엑셀 다운로드';}
 }
 
 // ── 마감 월 드롭다운 동적 ────────────────────────────────
@@ -3273,7 +3273,7 @@ function openSupplyDelModalEl(btn) {
 // ── 출하 상태 체크 ────────────────────────────────────
 function shipCheckHtml(d) {
   if (d.p_ship === '완료') {
-    return '<div class="ship-check-wrap" onclick="toggleShipDone('+d.no+')" title="클릭하면 출하대기로 변경"><div class="ship-checkbox checked">v</div><span class="ship-label checked">출하완료</span></div>';
+    return '<div class="ship-check-wrap" onclick="toggleShipDone('+d.no+')" title="클릭하면 출하대기로 변경"><div class="ship-checkbox checked">✓</div><span class="ship-label checked">출하완료</span></div>';
   } else if (d.p_ship === '출하대기') {
     return '<div class="ship-check-wrap" onclick="toggleShipDone('+d.no+')" title="클릭하면 출하완료 처리"><div class="ship-checkbox waiting">대기</div><span class="ship-label waiting">출하대기</span></div>';
   } else if (isMfg(d)) {
@@ -3299,7 +3299,7 @@ async function toggleStep(no, key) {
       if (d.p_ship !== '출하대기') {
         d.p_ship = '출하대기';
         await sb.from('pit_items').update({ p_ship: '출하대기' }).eq('no', no);
-        showToast('[알림] 공정 완료! 출하대기로 자동 전환됐어요');
+        showToast('🔔 공정 완료! 출하대기로 자동 전환됐어요');
       }
     } else if (anyDone) {
       if (d.p_ship !== '제작중') {
@@ -3323,7 +3323,7 @@ function dateCellHtml(no, field, dateStr) {
   var val = dateStr ? fmtDate(dateStr) : '—';
   var cls = dateStr ? 'set' : '';
   var attr = 'openDatePopup(' + no + ',' + JSON.stringify(field) + ',event)';
-  return '<div class="date-cell" onclick="' + attr + '"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">[편집]</span></div>';
+  return '<div class="date-cell" onclick="' + attr + '"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">✎</span></div>';
 }
 
 
@@ -3349,7 +3349,7 @@ function renderGasRow(idx) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.style.cssText = 'width:32px;height:32px;border-radius:50%;border:1px solid #e0e0e0;background:#fff;color:#ccc;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center';
-  btn.textContent = 'x';
+  btn.textContent = '✕';
   btn.onclick = function(){ removeGasRow(idx); };
   btn.onmouseover = function(){ this.style.background='#FCEBEB'; this.style.color='#E24B4A'; };
   btn.onmouseout = function(){ this.style.background='#fff'; this.style.color='#ccc'; };
@@ -3508,27 +3508,27 @@ function renderGasRow(idx) {
       <!-- KPI 카드 -->
       <div class="supply-kpi-row" id="supply-kpi-row">
         <div class="supply-kpi co2">
-          <div class="supply-kpi-top"><div class="supply-kpi-label">CO₂</div><div class="supply-kpi-icon" style="font-size:24px;font-weight:700;color:rgba(255,255,255,.6)">CO2</div></div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">CO₂</div><div class="supply-kpi-icon">🔵</div></div>
           <div class="supply-kpi-value" id="kpi-gas-0">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi argon">
-          <div class="supply-kpi-top"><div class="supply-kpi-label">알곤</div><div class="supply-kpi-icon" style="font-size:24px;font-weight:700;color:rgba(255,255,255,.6)">Ar</div></div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">알곤</div><div class="supply-kpi-icon">🟣</div></div>
           <div class="supply-kpi-value" id="kpi-gas-1">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi mixed">
-          <div class="supply-kpi-top"><div class="supply-kpi-label">혼합</div><div class="supply-kpi-icon" style="font-size:24px;font-weight:700;color:rgba(255,255,255,.6)">Mix</div></div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">혼합</div><div class="supply-kpi-icon">🟢</div></div>
           <div class="supply-kpi-value" id="kpi-gas-2">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi lpg">
-          <div class="supply-kpi-top"><div class="supply-kpi-label">LPG</div><div class="supply-kpi-icon" style="font-size:24px;font-weight:700;color:rgba(255,255,255,.6)">LPG</div></div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">LPG</div><div class="supply-kpi-icon">🟡</div></div>
           <div class="supply-kpi-value" id="kpi-gas-3">0</div>
           <div class="supply-kpi-unit">개 사용</div>
         </div>
         <div class="supply-kpi oxygen">
-          <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon" style="font-size:24px;font-weight:700;color:rgba(255,255,255,.6)">O2</div></div>
+          <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon">🔴</div></div>
           <div class="supply-kpi-value" id="kpi-gas-4">0</div>
     </div><!-- /supply-gas -->
   </div>
