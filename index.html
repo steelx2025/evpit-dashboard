@@ -3187,7 +3187,7 @@ function openDatePopup(no,field,event){
   var label=field==='sd'?'상차 예정일':'현장 도착일';var curVal=field==='sd'?d.sd:d.ad;
   document.getElementById('date-popup-title').textContent='No.'+no+' '+d.pit+' — '+label;document.getElementById('date-popup-input').value=curVal?curVal.slice(0,10):'';
   var popup=document.getElementById('date-popup');popup.style.display='block';document.getElementById('date-overlay').style.display='block';document.getElementById('date-overlay').classList.add('active');
-  var rect=event.currentTarget.getBoundingClientRect();var left=rect.left;var top=rect.bottom+4;if(left+220>window.innerWidth)left=window.innerWidth-228;if(top+130>window.innerHeight)top=rect.top-134;if(top<8)top=8;popup.style.left=left+'px';popup.style.top=top+'px';
+  var rect=(event.currentTarget||event.target).getBoundingClientRect();var left=rect.left;var top=rect.bottom+4;if(left+220>window.innerWidth)left=window.innerWidth-228;if(top+130>window.innerHeight)top=rect.top-134;if(top<8)top=8;popup.style.left=left+'px';popup.style.top=top+'px';
   setTimeout(function(){document.getElementById('date-popup-input').focus();},100);
 }
 function closeDatePopup(){document.getElementById('date-popup').style.display='none';document.getElementById('date-overlay').style.display='none';document.getElementById('date-overlay').classList.remove('active');_dateTarget=null;}
