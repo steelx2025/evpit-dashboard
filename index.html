@@ -3361,9 +3361,6 @@ function renderGasRow(idx) {
 
 </script>
 
-
-</div><!-- /service-pit -->
-
 <!-- ★ 공유 캘린더 (준비중) ★ -->
 <div id="service-calendar" style="display:none">
   <div class="service-topbar">
@@ -3487,25 +3484,18 @@ function renderGasRow(idx) {
     <div class="service-topbar-title">🔧 소모품 관리</div>
   </div>
   <div class="supply-wrap">
-
-    <!-- 서브 메뉴 -->
     <div class="supply-menu">
       <button class="supply-menu-btn on" onclick="supplySelectMenu('gas',this)">🔵 가스 내역</button>
     </div>
-
-    <!-- 가스 내역 -->
     <div id="supply-gas">
-      <!-- 월 선택 -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
         <div class="supply-month-sel">
           <button class="supply-month-btn" onclick="supplyMonthMove(-1)">←</button>
-          <div class="supply-month-label" id="supply-month-label">2026년 4월</div>
+          <div class="supply-month-label" id="supply-month-label">2026년 5월</div>
           <button class="supply-month-btn" onclick="supplyMonthMove(1)">→</button>
         </div>
         <button class="supply-add-btn" onclick="openSupplyModal()">＋ 가스 신청 등록</button>
       </div>
-
-      <!-- KPI 카드 -->
       <div class="supply-kpi-row" id="supply-kpi-row">
         <div class="supply-kpi co2">
           <div class="supply-kpi-top"><div class="supply-kpi-label">CO₂</div><div class="supply-kpi-icon">🔵</div></div>
@@ -3530,13 +3520,9 @@ function renderGasRow(idx) {
         <div class="supply-kpi oxygen">
           <div class="supply-kpi-top"><div class="supply-kpi-label">산소</div><div class="supply-kpi-icon">🔴</div></div>
           <div class="supply-kpi-value" id="kpi-gas-4">0</div>
-    </div><!-- /supply-gas -->
-  </div>
-
-      <!-- 내역 테이블 -->
-      
-
-      <!-- 내역 테이블 -->
+          <div class="supply-kpi-unit">개 사용</div>
+        </div>
+      </div>
       <div class="supply-table-wrap">
         <div class="supply-table-header">
           <div class="supply-table-title" id="supply-table-title">가스 신청 내역</div>
@@ -3557,8 +3543,10 @@ function renderGasRow(idx) {
             <tbody id="supply-tbody"></tbody>
           </table>
         </div>
-      </div><!-- /supply-wrap -->
-</div><!-- /service-supply -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 가스 등록 모달 -->
 <div class="supply-modal-overlay" id="supply-modal">
