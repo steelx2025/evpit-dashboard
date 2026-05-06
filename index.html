@@ -3322,8 +3322,7 @@ async function toggleStep(no, key) {
 function dateCellHtml(no, field, dateStr) {
   var val = dateStr ? fmtDate(dateStr) : '—';
   var cls = dateStr ? 'set' : '';
-  var attr = 'openDatePopup(' + no + ',' + JSON.stringify(field) + ',event)';
-  return '<div class="date-cell" onclick="' + attr + '"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">✎</span></div>';
+  return '<div class="date-cell" data-no="'+no+'" data-field="'+field+'" onclick="openDatePopupEl(this,event)"><span class="date-val ' + cls + '">' + val + '</span><span class="date-edit-icon">✎</span></div>';
 }
 
 
@@ -3357,6 +3356,13 @@ function renderGasRow(idx) {
   div.appendChild(inp);
   div.appendChild(btn);
   return div;
+}
+
+
+function openDatePopupEl(el, event) {
+  var no = parseInt(el.dataset.no);
+  var field = el.dataset.field;
+  openDatePopup(no, field, event);
 }
 
 </script>
