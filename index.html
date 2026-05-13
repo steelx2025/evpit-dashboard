@@ -2748,7 +2748,7 @@ function hrRenderPiana(year, month, dim, today) {
   var pianaKey = 'piana_'+year+'_'+String(month).padStart(2,'0');
   var totalSx=0, totalYr=0, totalAmt=0;
   var rows = '';
-  var opts = ['','0.5','1','1.5','2','휴무'];
+  var opts = ['','0.25','0.5','1','1.5','2','휴무'];
   for (var d=1; d<=dim; d++) {
     var dt = new Date(year,month-1,d); var dow = dt.getDay();
     var isWeekend = dow===0||dow===6;
