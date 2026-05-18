@@ -1574,6 +1574,21 @@ table.supply-tbl tr.sum-row td {
 .supply-month-btn:hover { background:#f5f5f5; }
 .supply-month-label { font-size:16px; font-weight:700; min-width:80px; text-align:center; }
 
+
+/* 피안나 콤보박스 */
+.ks-combo {
+  width:100px; padding:5px 8px;
+  border:1.5px solid #d0e8c0; border-radius:8px;
+  font-size:12px; font-family:inherit;
+  background:#f0f7ea; color:#1a1a1a;
+  outline:none; text-align:center;
+  transition:border-color .15s, background .15s;
+}
+.ks-combo:focus {
+  border-color:#27500A; background:#fff;
+}
+.ks-combo.holiday { color:#E24B4A; border-color:#ffc0c0; background:#fff5f5; }
+
 </style>
 </head>
 <body>
@@ -2762,13 +2777,13 @@ function hrRenderPiana(year, month, dim, today) {
     var amtCls=total>0?'amount-cell':'amount-cell zero';
     var rowCls=isToday?'today-row':isWeekend?'weekend':'';
     var dateCls=isWeekend?'date-col':'';
-    var sxSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.steelx===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
-    var yrSel=opts.map(function(v){return '<option value="'+v+'"'+(rec.yr===v?' selected':'')+''+(v==='휴무'?' style="color:#E24B4A"':'')+'>'+( v===''?'—':v==='휴무'?'🔴 휴무':v+'공수')+'</option>';}).join('');
+    var sxSel=opts.filter(function(v){return v!=='';}).map(function(v){return '<option value="'+(v==='휴무'?'휴무':v)+'"></option>';}).join('');
+    var yrSel=opts.filter(function(v){return v!=='';}).map(function(v){return '<option value="'+(v==='휴무'?'휴무':v)+'"></option>';}).join('');
     var noteVal=(rec.note||'').replace(/"/g,'&quot;');
     rows+='<tr class="'+rowCls+'">';
     rows+='<td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td>';
-    rows+='<td><select class="ks-select steelx" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="steelx" onchange="hrSetPiana(this)">'+sxSel+'</select></td>';
-    rows+='<td><select class="ks-select yr" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="yr" onchange="hrSetPiana(this)">'+yrSel+'</select></td>';
+    rows+='<td><div style="position:relative;display:inline-block;width:110px">'+'<input class="ks-combo" type="text" list="sx-opts" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="steelx" value="'+(rec.steelx||'')+'" placeholder="—" onchange="hrSetPianaCombo(this)" oninput="hrSetPianaCombo(this)">'+'<datalist id="sx-opts">'+sxSel+'</datalist>'+'</div></td>';
+    rows+='<td><div style="position:relative;display:inline-block;width:110px">'+'<input class="ks-combo" type="text" list="yr-opts" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="yr" value="'+(rec.yr||'')+'" placeholder="—" onchange="hrSetPianaCombo(this)" oninput="hrSetPianaCombo(this)">'+'<datalist id="yr-opts">'+yrSel+'</datalist>'+'</div></td>';
     rows+='<td class="'+amtCls+'" id="hr-total-'+dd+'">'+totalStr+'</td>';
     rows+='<td style="text-align:left"><input class="hr-note-input" type="text" value="'+noteVal+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onchange="hrSetPianaNote(this)" placeholder=""></td>';
     rows+='</tr>';
@@ -3363,6 +3378,36 @@ function openDatePopupEl(el, event) {
   var no = parseInt(el.dataset.no);
   var field = el.dataset.field;
   openDatePopup(no, field, event);
+}
+
+
+function hrSetPianaCombo(inp) {
+  var raw_val = inp.value.trim();
+  // '공수' 제거해서 숫자만 추출
+  var val = raw_val.trim();
+  
+  // 휴무 처리
+  if (val === '휴무' || raw_val === '휴무') {
+    val = '휴무';
+    inp.value = '휴무';
+    inp.className = 'ks-combo holiday';
+  } else if (val === '' || val === '—') {
+    val = '';
+    inp.value = '';
+    inp.className = 'ks-combo';
+  } else {
+    var num = parseFloat(val);
+    if (isNaN(num) || num < 0) return;
+    val = String(num);
+    inp.className = 'ks-combo';
+  }
+  
+  var year = parseInt(inp.dataset.y);
+  var month = parseInt(inp.dataset.m);
+  var dd = inp.dataset.d;
+  var field = inp.dataset.f;
+  hrSetData('piana', year, month, dd, field, val);
+  hrUpdateKPI();
 }
 
 </script>
