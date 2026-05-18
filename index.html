@@ -3399,56 +3399,38 @@ var PIANA_OPTS = ['0.25','0.5','1','1.5','2','휴무'];
 
 function makePianaCombo(year, month, dd, curVal, field) {
   var prefix = field === 'steelx' ? 'sx' : 'yr';
-  var inpId = prefix + '-inp-' + dd;
-  var optId = prefix + '-opts-' + dd;
-  var isHol = curVal === '휴무';
+  var inpId  = prefix + '-inp-' + dd;
+  var optId  = prefix + '-opts-' + dd;
+  var isHol  = curVal === '휴무';
   var color  = isHol ? '#E24B4A' : '#1a1a1a';
   var bg     = isHol ? '#fff5f5' : '#f0f7ea';
-  var border = isHol ? '#ffc0c0' : '#d0e8c0';
+  var bdc    = isHol ? '#ffc0c0' : '#d0e8c0';
+  var val    = curVal || '';
+  var hov    = '#f0f7ea';
 
-  var wrap = document.createElement('div');
-  wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center';
+  var opts_html = PIANA_OPTS.map(function(v) {
+    var vc  = v === '휴무' ? '#E24B4A' : '#1a1a1a';
+    var lbl = v === '휴무' ? '🔴 휴무' : v + '공수';
+    return '<div class="piana-opt-item"'
+      + ' onmouseover="this.style.background=\'' + hov + '\'"'
+      + ' onmouseout="this.style.background=\'\'"'
+      + ' onclick="selectPianaOpt(\'' + inpId + '\',\'' + optId + '\',\'' + v + '\')"'
+      + ' style="padding:8px 16px;cursor:pointer;font-size:13px;color:' + vc + '">'
+      + lbl + '</div>';
+  }).join('');
 
-  var inp = document.createElement('input');
-  inp.className = 'ks-combo';
-  inp.id = inpId;
-  inp.type = 'text';
-  inp.dataset.y = year;
-  inp.dataset.m = month;
-  inp.dataset.d = dd;
-  inp.dataset.f = field;
-  inp.value = curVal || '';
-  inp.placeholder = '—';
-  inp.style.cssText = 'color:'+color+';background:'+bg+';border-color:'+border+';border-radius:8px 0 0 8px;border-right:none;width:80px;text-align:center';
-  inp.onchange = function(){ hrSetPianaCombo(this); };
-  inp.oninput  = function(){ hrSetPianaCombo(this); };
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.textContent = '▼';
-  btn.style.cssText = 'height:30px;padding:0 6px;background:'+bg+';border:1.5px solid '+border+';border-left:none;border-radius:0 8px 8px 0;cursor:pointer;font-size:10px;color:#666';
-  btn.onclick = function(){ togglePianaOpts(optId); };
-
-  var dropdown = document.createElement('div');
-  dropdown.id = optId;
-  dropdown.className = 'piana-opts';
-  dropdown.style.cssText = 'display:none;position:absolute;top:32px;left:0;z-index:9999;background:#fff;border:1.5px solid #d0e8c0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;overflow:hidden';
-
-  PIANA_OPTS.forEach(function(v) {
-    var item = document.createElement('div');
-    item.className = 'piana-opt-item';
-    item.textContent = v === '휴무' ? '🔴 휴무' : v + '공수';
-    item.style.cssText = 'padding:8px 16px;cursor:pointer;font-size:13px;color:'+(v==='휴무'?'#E24B4A':'#1a1a1a');
-    item.onmouseover = function(){ this.style.background='#f0f7ea'; };
-    item.onmouseout  = function(){ this.style.background=''; };
-    item.onclick = function(){ selectPianaOpt(inpId, optId, v); };
-    dropdown.appendChild(item);
-  });
-
-  wrap.appendChild(inp);
-  wrap.appendChild(btn);
-  wrap.appendChild(dropdown);
-  return wrap.outerHTML;
+  return '<div style="position:relative;display:inline-flex;align-items:center">'
+    + '<input class="ks-combo" id="' + inpId + '" type="text"'
+    + ' data-y="' + year + '" data-m="' + month + '" data-d="' + dd + '" data-f="' + field + '"'
+    + ' value="' + val + '" placeholder="—"'
+    + ' onchange="hrSetPianaCombo(this)" oninput="hrSetPianaCombo(this)"'
+    + ' style="color:' + color + ';background:' + bg + ';border-color:' + bdc + ';border-radius:8px 0 0 8px;border-right:none;width:80px;text-align:center">'
+    + '<button type="button"'
+    + ' onclick="togglePianaOpts(\'' + optId + '\')"'
+    + ' style="height:30px;padding:0 6px;background:' + bg + ';border:1.5px solid ' + bdc + ';border-left:none;border-radius:0 8px 8px 0;cursor:pointer;font-size:10px;color:#666">▼</button>'
+    + '<div id="' + optId + '" class="piana-opts"'
+    + ' style="display:none;position:absolute;top:32px;left:0;z-index:9999;background:#fff;border:1.5px solid #d0e8c0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;overflow:hidden">'
+    + opts_html + '</div></div>';
 }
 
 function togglePianaOpts(optId) {
