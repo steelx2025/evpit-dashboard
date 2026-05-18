@@ -1583,6 +1583,7 @@ table.supply-tbl tr.sum-row td {
   background:#f0f7ea; color:#1a1a1a;
   outline:none; text-align:center;
   transition:border-color .15s, background .15s;
+  cursor:pointer;
 }
 .ks-combo:focus {
   border-color:#27500A; background:#fff;
@@ -2777,13 +2778,11 @@ function hrRenderPiana(year, month, dim, today) {
     var amtCls=total>0?'amount-cell':'amount-cell zero';
     var rowCls=isToday?'today-row':isWeekend?'weekend':'';
     var dateCls=isWeekend?'date-col':'';
-    var sxSel=opts.filter(function(v){return v!=='';}).map(function(v){return '<option value="'+(v==='휴무'?'휴무':v)+'"></option>';}).join('');
-    var yrSel=opts.filter(function(v){return v!=='';}).map(function(v){return '<option value="'+(v==='휴무'?'휴무':v)+'"></option>';}).join('');
     var noteVal=(rec.note||'').replace(/"/g,'&quot;');
     rows+='<tr class="'+rowCls+'">';
     rows+='<td class="'+dateCls+'" style="font-weight:500">'+month+'월 '+d+'일 ('+DAYS_KO[dow]+')</td>';
-    rows+='<td><div style="position:relative;display:inline-block;width:110px">'+'<input class="ks-combo" type="text" list="sx-opts" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="steelx" value="'+(rec.steelx||'')+'" placeholder="—" onchange="hrSetPianaCombo(this)" oninput="hrSetPianaCombo(this)">'+'<datalist id="sx-opts">'+sxSel+'</datalist>'+'</div></td>';
-    rows+='<td><div style="position:relative;display:inline-block;width:110px">'+'<input class="ks-combo" type="text" list="yr-opts" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" data-f="yr" value="'+(rec.yr||'')+'" placeholder="—" onchange="hrSetPianaCombo(this)" oninput="hrSetPianaCombo(this)">'+'<datalist id="yr-opts">'+yrSel+'</datalist>'+'</div></td>';
+    rows+='<td>'+makePianaCombo(year,month,dd,rec.steelx,'steelx')+'</td>';
+    rows+='<td>'+makePianaCombo(year,month,dd,rec.yr,'yr')+'</td>';
     rows+='<td class="'+amtCls+'" id="hr-total-'+dd+'">'+totalStr+'</td>';
     rows+='<td style="text-align:left"><input class="hr-note-input" type="text" value="'+noteVal+'" data-y="'+year+'" data-m="'+month+'" data-d="'+dd+'" onchange="hrSetPianaNote(this)" placeholder=""></td>';
     rows+='</tr>';
@@ -3381,27 +3380,104 @@ function openDatePopupEl(el, event) {
 }
 
 
-function hrSetPianaCombo(inp) {
-  var raw_val = inp.value.trim();
-  // '공수' 제거해서 숫자만 추출
-  var val = raw_val.trim();
-  
-  // 휴무 처리
-  if (val === '휴무' || raw_val === '휴무') {
-    val = '휴무';
-    inp.value = '휴무';
-    inp.className = 'ks-combo holiday';
-  } else if (val === '' || val === '—') {
-    val = '';
-    inp.value = '';
-    inp.className = 'ks-combo';
-  } else {
-    var num = parseFloat(val);
-    if (isNaN(num) || num < 0) return;
-    val = String(num);
-    inp.className = 'ks-combo';
+
+
+
+
+// 외부 클릭 시 드롭다운 닫기
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.piana-opts') && !e.target.closest('button[onclick^="togglePianaOpts"]')) {
+    document.querySelectorAll('.piana-opts').forEach(function(el) {
+      el.style.display = 'none';
+    });
   }
-  
+});
+
+
+// ── 피안나 콤보박스 ──────────────────────────────────
+var PIANA_OPTS = ['0.25','0.5','1','1.5','2','휴무'];
+
+function makePianaCombo(year, month, dd, curVal, field) {
+  var prefix = field === 'steelx' ? 'sx' : 'yr';
+  var inpId = prefix + '-inp-' + dd;
+  var optId = prefix + '-opts-' + dd;
+  var isHol = curVal === '휴무';
+  var color  = isHol ? '#E24B4A' : '#1a1a1a';
+  var bg     = isHol ? '#fff5f5' : '#f0f7ea';
+  var border = isHol ? '#ffc0c0' : '#d0e8c0';
+
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center';
+
+  var inp = document.createElement('input');
+  inp.className = 'ks-combo';
+  inp.id = inpId;
+  inp.type = 'text';
+  inp.dataset.y = year;
+  inp.dataset.m = month;
+  inp.dataset.d = dd;
+  inp.dataset.f = field;
+  inp.value = curVal || '';
+  inp.placeholder = '—';
+  inp.style.cssText = 'color:'+color+';background:'+bg+';border-color:'+border+';border-radius:8px 0 0 8px;border-right:none;width:80px;text-align:center';
+  inp.onchange = function(){ hrSetPianaCombo(this); };
+  inp.oninput  = function(){ hrSetPianaCombo(this); };
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = '▼';
+  btn.style.cssText = 'height:30px;padding:0 6px;background:'+bg+';border:1.5px solid '+border+';border-left:none;border-radius:0 8px 8px 0;cursor:pointer;font-size:10px;color:#666';
+  btn.onclick = function(){ togglePianaOpts(optId); };
+
+  var dropdown = document.createElement('div');
+  dropdown.id = optId;
+  dropdown.className = 'piana-opts';
+  dropdown.style.cssText = 'display:none;position:absolute;top:32px;left:0;z-index:9999;background:#fff;border:1.5px solid #d0e8c0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:110px;overflow:hidden';
+
+  PIANA_OPTS.forEach(function(v) {
+    var item = document.createElement('div');
+    item.className = 'piana-opt-item';
+    item.textContent = v === '휴무' ? '🔴 휴무' : v + '공수';
+    item.style.cssText = 'padding:8px 16px;cursor:pointer;font-size:13px;color:'+(v==='휴무'?'#E24B4A':'#1a1a1a');
+    item.onmouseover = function(){ this.style.background='#f0f7ea'; };
+    item.onmouseout  = function(){ this.style.background=''; };
+    item.onclick = function(){ selectPianaOpt(inpId, optId, v); };
+    dropdown.appendChild(item);
+  });
+
+  wrap.appendChild(inp);
+  wrap.appendChild(btn);
+  wrap.appendChild(dropdown);
+  return wrap.outerHTML;
+}
+
+function togglePianaOpts(optId) {
+  document.querySelectorAll('.piana-opts').forEach(function(el) {
+    el.style.display = el.id === optId && el.style.display === 'none' ? 'block' : 'none';
+  });
+}
+
+function selectPianaOpt(inpId, optId, val) {
+  var inp = document.getElementById(inpId);
+  if (inp) { inp.value = val; hrSetPianaCombo(inp); }
+  var opts = document.getElementById(optId);
+  if (opts) opts.style.display = 'none';
+}
+
+function hrSetPianaCombo(inp) {
+  var val = inp.value.trim();
+  if (val === '휴무') {
+    inp.style.color = '#E24B4A';
+    inp.style.background = '#fff5f5';
+    inp.style.borderColor = '#ffc0c0';
+  } else {
+    inp.style.color = '#1a1a1a';
+    inp.style.background = '#f0f7ea';
+    inp.style.borderColor = '#d0e8c0';
+    var num = parseFloat(val);
+    if (!isNaN(num)) val = String(num);
+    else if (val !== '') return;
+  }
   var year = parseInt(inp.dataset.y);
   var month = parseInt(inp.dataset.m);
   var dd = inp.dataset.d;
@@ -3409,6 +3485,12 @@ function hrSetPianaCombo(inp) {
   hrSetData('piana', year, month, dd, field, val);
   hrUpdateKPI();
 }
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.piana-opts') && !e.target.matches('[onclick*="togglePianaOpts"]')) {
+    document.querySelectorAll('.piana-opts').forEach(function(el) { el.style.display = 'none'; });
+  }
+});
 
 </script>
 
