@@ -3395,7 +3395,7 @@ document.addEventListener('click', function(e) {
 
 
 // ── 피안나 콤보박스 ──────────────────────────────────
-var PIANA_OPTS = ['0.25','0.5','1','1.5','2','휴무'];
+var PIANA_OPTS = ['—','0.25','0.5','1','1.5','2','휴무'];
 
 function makePianaCombo(year, month, dd, curVal, field) {
   var prefix = field === 'steelx' ? 'sx' : 'yr';
@@ -3410,7 +3410,7 @@ function makePianaCombo(year, month, dd, curVal, field) {
 
   var opts_html = PIANA_OPTS.map(function(v) {
     var vc  = v === '휴무' ? '#E24B4A' : '#1a1a1a';
-    var lbl = v === '휴무' ? '🔴 휴무' : v + '공수';
+    var lbl = v === '휴무' ? '🔴 휴무' : v === '—' ? '— (초기화)' : v + '공수';
     return '<div class="piana-opt-item"'
       + ' onmouseover="this.style.background=\'' + hov + '\'"'
       + ' onmouseout="this.style.background=\'\'"'
@@ -3441,14 +3441,19 @@ function togglePianaOpts(optId) {
 
 function selectPianaOpt(inpId, optId, val) {
   var inp = document.getElementById(inpId);
-  if (inp) { inp.value = val; hrSetPianaCombo(inp); }
+  if (inp) { inp.value = val === '—' ? '' : val; hrSetPianaCombo(inp); }
   var opts = document.getElementById(optId);
   if (opts) opts.style.display = 'none';
 }
 
 function hrSetPianaCombo(inp) {
   var val = inp.value.trim();
-  if (val === '휴무') {
+  if (val === '—') {
+    val = '';
+    inp.style.color = '#999';
+    inp.style.background = '#f0f7ea';
+    inp.style.borderColor = '#d0e8c0';
+  } else if (val === '휴무') {
     inp.style.color = '#E24B4A';
     inp.style.background = '#fff5f5';
     inp.style.borderColor = '#ffc0c0';
