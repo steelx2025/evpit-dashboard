@@ -1949,11 +1949,6 @@ table.supply-tbl tr.sum-row td {
         <div class="dl-wrap">
           <select class="dl-select" id="dl-select" onchange="filtDl(this)">
             <option value="">마감 월 선택</option>
-            <option value="1월">1월</option>
-            <option value="2월">2월</option>
-            <option value="3월">3월</option>
-            <option value="4월">4월</option>
-            <option value="5월">5월</option>
           </select>
           <span class="dl-arrow">▼</span>
         </div>
@@ -2446,10 +2441,10 @@ function buildEvMap() {
   });
   return m;
 }
-let CY=2026, CM=3;
+const _today=new Date(); let CY=_today.getFullYear(), CM=_today.getMonth();
 const DOWS=['일','월','화','수','목','금','토'], MNAMES=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 function renderCal() {
-  const EV = buildEvMap(); const today = new Date(2026,3,24);
+  const EV = buildEvMap(); const today = new Date();
   document.getElementById('ctitle').textContent = `${CY}년 ${MNAMES[CM]}`;
   document.getElementById('cdow').innerHTML = DOWS.map((d,i)=>`<div class="cdow${i===0?' sun':''}">${d}</div>`).join('');
   const fd=new Date(CY,CM,1).getDay(), dim=new Date(CY,CM+1,0).getDate(), dip=new Date(CY,CM,0).getDate();
@@ -2474,11 +2469,20 @@ function cmove(dir){CM+=dir;if(CM>11){CM=0;CY++;}if(CM<0){CM=11;CY--;}document.g
 
 // ── 마감 일정 ──────────────────────────────────────────────
 function renderDL() {
-  const mons=['1월','2월','3월','4월','5월'], colors=['#1D9E75','#1D9E75','#1D9E75','#EF9F27','#378ADD'];
-  document.getElementById('dl-list').innerHTML = mons.map((m,i)=>{
-    const items=D.filter(d=>d.dl===m), done=items.filter(isDone).length;
-    const pct=items.length?Math.round(done/items.length*100):0;
-    return `<div class="dl-row"><span style="font-size:13px;font-weight:600;min-width:36px">${m}</span><span style="font-size:12px;color:#999;min-width:100px">${items.length}건 · 완료 ${done}건</span><div style="flex:1;height:8px;border-radius:4px;background:#f0f0f0"><div style="height:100%;border-radius:4px;width:${pct}%;background:${colors[i]}"></div></div><span style="font-size:13px;font-weight:600;min-width:38px;text-align:right;color:${colors[i]}">${pct}%</span></div>`;
+  // DB에서 마감월 동적 추출
+  var mons = [];
+  D.forEach(function(d){ if(d.dl && mons.indexOf(d.dl)===-1) mons.push(d.dl); });
+  mons.sort(function(a,b){ return parseInt(a)-parseInt(b); });
+  var palette = ['#1D9E75','#378ADD','#EF9F27','#E24B4A','#8B5CF6','#10B981','#F59E0B','#3B82F6','#EC4899','#14B8A6','#F97316','#6366F1'];
+  if(mons.length===0){
+    document.getElementById('dl-list').innerHTML='<div style="text-align:center;padding:2rem;color:#999;font-size:13px">마감 데이터가 없어요</div>';
+    return;
+  }
+  document.getElementById('dl-list').innerHTML = mons.map(function(m,i){
+    var items=D.filter(function(d){return d.dl===m;}), done=items.filter(isDone).length;
+    var pct=items.length?Math.round(done/items.length*100):0;
+    var color=palette[i%palette.length];
+    return '<div class="dl-row"><span style="font-size:13px;font-weight:600;min-width:36px">'+m+'</span><span style="font-size:12px;color:#999;min-width:100px">'+items.length+'건 · 완료 '+done+'건</span><div style="flex:1;height:8px;border-radius:4px;background:#f0f0f0"><div style="height:100%;border-radius:4px;width:'+pct+'%;background:'+color+'"></div></div><span style="font-size:13px;font-weight:600;min-width:38px;text-align:right;color:'+color+'">'+pct+'%</span></div>';
   }).join('');
 }
 
@@ -2492,7 +2496,7 @@ function renderSites() {
 }
 
 // ── 매출·정산 ──────────────────────────────────────────────
-const MLIST=['1월','2월','3월','4월','5월'];
+var MLIST = [];
 function getMD(){
   // DB 데이터에서 마감 월 목록 동적 생성 (정렬)
   var months = [];
