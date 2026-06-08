@@ -1590,6 +1590,26 @@ table.supply-tbl tr.sum-row td {
 }
 .ks-combo.holiday { color:#E24B4A; border-color:#ffc0c0; background:#fff5f5; }
 
+
+/* ── 마감 월 인라인 편집 ─────────────────────────── */
+.dl-cell {
+  display:inline-flex;align-items:center;gap:4px;
+  cursor:pointer;border-radius:6px;padding:2px 6px;
+  transition:background .12s;
+}
+.dl-cell:hover { background:#f0f0f0; }
+.dl-cell .dl-edit-icon { font-size:10px;color:#ccc; }
+.dl-select-wrap {
+  display:none;position:relative;
+}
+.dl-select-wrap.open { display:inline-block; }
+.dl-inline-select {
+  font-size:11px;padding:3px 6px;border-radius:6px;
+  border:1.5px solid #1a1a1a;background:#fff;
+  color:#1a1a1a;outline:none;cursor:pointer;
+  font-family:inherit;
+}
+
 </style>
 </head>
 <body>
@@ -2388,7 +2408,7 @@ function renderTable() {
       <td class="sep">${shipCheckHtml(d)}</td>
       <td style="padding:4px 8px">${dateCellHtml(d.no,'sd',d.sd)}</td>
       <td style="padding:4px 8px">${dateCellHtml(d.no,'ad',d.ad)}</td>
-      <td><span class="pill p-plan" style="font-size:10px">${d.dl} 마감</span></td>
+      <td><span class="pill p-plan" style="font-size:10px">${dlCellHtml(d.no, d.dl)}</td>
       <td class="left" style="padding:6px 10px">${noteCellHtml(d.no, d.note)}</td>
       <td style="text-align:center"><button class="print-btn" onclick="openLabelModal(${d.no})" title="부착표지 인쇄">🖨</button></td>
       <td><button class="del-btn" onclick="openDelModal(${d.no},'${d.pit}','${d.site}')" title="삭제">✕</button></td>
@@ -3481,6 +3501,56 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.piana-opts') && !e.target.matches('[onclick*="togglePianaOpts"]')) {
     document.querySelectorAll('.piana-opts').forEach(function(el) { el.style.display = 'none'; });
   }
+});
+
+
+// ── 마감 월 인라인 편집 ──────────────────────────────────
+function dlCellHtml(no, dl) {
+  var months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var opts = months.map(function(m) {
+    return '<option value="'+m+'"'+(dl===m?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  return '<span class="dl-cell" onclick="openDlEdit('+no+',event)">'
+    + '<span class="pill p-plan" style="font-size:10px">'+(dl||'—')+' 마감</span>'
+    + '<span class="dl-edit-icon">✎</span>'
+    + '</span>'
+    + '<span class="dl-select-wrap" id="dl-wrap-'+no+'">'
+    + '<select class="dl-inline-select" onchange="saveDl('+no+',this.value)">'
+    + '<option value="">월 선택</option>'
+    + opts
+    + '</select>'
+    + '</span>';
+}
+
+function openDlEdit(no, event) {
+  event.stopPropagation();
+  // 다른 열린 편집창 닫기
+  document.querySelectorAll('.dl-select-wrap.open').forEach(function(el) {
+    el.classList.remove('open');
+  });
+  var wrap = document.getElementById('dl-wrap-'+no);
+  if (wrap) wrap.classList.add('open');
+}
+
+async function saveDl(no, val) {
+  if (!val) return;
+  var d = D.find(function(x){ return x.no === no; });
+  if (d) d.dl = val;
+  // 편집창 닫기
+  var wrap = document.getElementById('dl-wrap-'+no);
+  if (wrap) wrap.classList.remove('open');
+  // DB 저장
+  await sb.from('pit_items').update({ dl: val }).eq('no', no);
+  // 화면 갱신
+  initKPI(); renderTable(); renderDL(); renderRev(); updateDlDropdown();
+  showToast('📅 마감 '+val+'로 저장됐어요 ✓');
+}
+
+// 외부 클릭 시 마감 편집창 닫기
+document.addEventListener('click', function() {
+  document.querySelectorAll('.dl-select-wrap.open').forEach(function(el) {
+    el.classList.remove('open');
+  });
 });
 
 </script>
