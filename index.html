@@ -3515,7 +3515,7 @@ function dlCellHtml(no, dl) {
     + '<span class="dl-edit-icon">✎</span>'
     + '</span>'
     + '<span class="dl-select-wrap" id="dl-wrap-'+no+'">'
-    + '<select class="dl-inline-select" onchange="saveDl('+no+',this.value)">'
+    + '<select class="dl-inline-select" onclick="event.stopPropagation()" onchange="saveDl('+no+',this.value)">'
     + '<option value="">월 선택</option>'
     + opts
     + '</select>'
@@ -3547,10 +3547,12 @@ async function saveDl(no, val) {
 }
 
 // 외부 클릭 시 마감 편집창 닫기
-document.addEventListener('click', function() {
-  document.querySelectorAll('.dl-select-wrap.open').forEach(function(el) {
-    el.classList.remove('open');
-  });
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.dl-select-wrap') && !e.target.closest('.dl-cell')) {
+    document.querySelectorAll('.dl-select-wrap.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+  }
 });
 
 </script>
